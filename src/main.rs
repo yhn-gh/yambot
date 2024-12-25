@@ -1,4 +1,6 @@
 use backend::config::AppConfig;
+use backend::watcher::Watcher;
+use backend::sfx::SoundList;
 use eframe::egui::{self};
 use rodio::{Decoder, OutputStream};
 use rodio::{OutputStreamHandle, Sink};
