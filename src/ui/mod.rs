@@ -1,5 +1,5 @@
-use egui::{ CentralPanel, Color32, TopBottomPanel };
-use serde::{ Deserialize, Serialize };
+use egui::{CentralPanel, Color32, TopBottomPanel};
+use serde::{Deserialize, Serialize};
 
 pub mod home;
 pub mod settings;
@@ -78,6 +78,7 @@ struct LogMessage {
 pub struct ChatbotConfig {
     pub channel_name: String,
     pub auth_token: String,
+    pub sound_format: crate::backend::sounds::Format,
 }
 
 pub struct Chatbot {
@@ -97,7 +98,7 @@ impl Chatbot {
         frontend_tx: tokio::sync::mpsc::Sender<FrontendToBackendMessage>,
         frontend_rx: tokio::sync::mpsc::Receiver<BackendToFrontendMessage>,
         sfx_config: Config,
-        tts_config: Config
+        tts_config: Config,
     ) -> Self {
         Self {
             config,
@@ -143,13 +144,11 @@ impl eframe::App for Chatbot {
             });
         });
 
-        CentralPanel::default().show(ctx, |ui| {
-            match self.selected_section {
-                Section::Home => self.show_home(ui),
-                Section::Sfx => self.show_sfx(ui),
-                Section::Tts => self.show_tts(ui),
-                Section::Settings => self.show_settings(ui),
-            }
+        CentralPanel::default().show(ctx, |ui| match self.selected_section {
+            Section::Home => self.show_home(ui),
+            Section::Sfx => self.show_sfx(ui),
+            Section::Tts => self.show_tts(ui),
+            Section::Settings => self.show_settings(ui),
         });
 
         TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {

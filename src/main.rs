@@ -1,4 +1,6 @@
 use backend::config::AppConfig;
+use backend::sounds::{Sounds, FILES};
+use backend::watcher::Watcher;
 use eframe::egui::{self};
 use rodio::{Decoder, OutputStream};
 use rodio::{OutputStreamHandle, Sink};
@@ -61,6 +63,11 @@ async fn main() {
         handle_frontend_to_backend_messages(backend_rx, backend_tx.clone(), stream_handle).await;
     });
     info!("Starting chatbot");
+    let mut watcher = Watcher::serve();
+    let _ = watcher.watch(Path::new("./assets/sounds/"));
+    Sounds::serve().unwrap();
+    let _ = watcher.push_files().await;
+
     let _ = eframe::run_native(
         "Yambot",
         native_options,
@@ -83,7 +90,7 @@ async fn main() {
     .map_err(|e| error!("Error: {:?}", e));
 }
 
-async fn handle_twitch_messages(channel_name: String) {
+async fn handle_twitch_messages(channel_name: String, stream_handle: Arc<OutputStreamHandle>) {
     // TODO: add messages to local db
     let mut messages: Vec<ChatMessage> = Vec::new();
     let config: ClientConfig<StaticLoginCredentials> = ClientConfig::default();
@@ -91,11 +98,24 @@ async fn handle_twitch_messages(channel_name: String) {
         TwitchIRCClient::<SecureTCPTransport, StaticLoginCredentials>::new(config);
     client.join(channel_name.clone()).unwrap();
 
+    // For now :)
+    //    let mut watcher = Watcher::serve();
+    //    let _ = watcher.watch(Path::new("./assets/sounds"));
+    //    let sounds = Sounds::collect(watcher);
+
     while let Some(message) = incoming_messages.recv().await {
         match message {
             twitch_irc::message::ServerMessage::Privmsg(privmsg) => {
                 let chat_message: ChatMessage = privmsg.into();
                 println!("Message: {:?}", chat_message);
+                if chat_message.message_text.starts_with('!') {
+                    let command = chat_message.message_text.split_whitespace().next().unwrap();
+                    let command = &command[1..];
+                    if FILES.lock().unwrap().contains(command) {
+                        let file = &format!("{}.{}", command, Sounds::get_format());
+                        play_sound(file, stream_handle.clone()).await;
+                    }
+                }
                 messages.push(chat_message);
             }
             twitch_irc::message::ServerMessage::Join(join_msg) => {
@@ -168,8 +188,9 @@ async fn handle_frontend_to_backend_messages(
                 ));
             }
             FrontendToBackendMessage::ConnectToChat(channel_name) => {
+                let _stream_handle = stream_handle.clone();
                 tokio::spawn(async move {
-                    handle_twitch_messages(channel_name).await;
+                    handle_twitch_messages(channel_name, _stream_handle).await;
                 });
             }
             _ => {
@@ -179,8 +200,8 @@ async fn handle_frontend_to_backend_messages(
     }
 }
 
-async fn play_sound(sound_file: String, stream_handle: Arc<OutputStreamHandle>) {
-    let sound_path = "./assets/sounds/".to_string() + &sound_file;
+async fn play_sound(sound_file: &str, stream_handle: Arc<OutputStreamHandle>) {
+    let sound_path = "./assets/sounds/".to_string() + sound_file;
     if let Ok(file) = File::open(Path::new(&sound_path)) {
         let source = Decoder::new(BufReader::new(file)).unwrap();
         let sink = Sink::try_new(&*stream_handle).unwrap();

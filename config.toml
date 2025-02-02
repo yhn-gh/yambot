@@ -1,6 +1,7 @@
 [chatbot]
 channel_name = ""
 auth_token = ""
+sound_format = "Wav"
 
 [sfx]
 volume = 0.5
