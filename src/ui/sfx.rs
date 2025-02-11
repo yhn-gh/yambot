@@ -1,4 +1,4 @@
-use crate::backend::sounds::FILES;
+use crate::backend::sfx::FILES;
 use egui::Color32;
 
 use super::Chatbot;

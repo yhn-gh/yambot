@@ -1,5 +1,5 @@
 use super::{Chatbot, ChatbotConfig, FrontendToBackendMessage};
-use crate::backend::sounds::Format;
+use crate::backend::sfx::Format;
 
 impl Chatbot {
     pub fn show_settings(&mut self, ui: &mut egui::Ui) {

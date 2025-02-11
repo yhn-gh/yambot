@@ -36,9 +36,9 @@ pub enum BackendToFrontendMessage {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     // https://github.com/emilk/egui/discussions/4670
-    volume: f64,
-    enabled: bool,
-    permited_roles: PermitedRoles,
+    pub volume: f64,
+    pub enabled: bool,
+    pub permited_roles: PermitedRoles,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -78,7 +78,7 @@ struct LogMessage {
 pub struct ChatbotConfig {
     pub channel_name: String,
     pub auth_token: String,
-    pub sound_format: crate::backend::sounds::Format,
+    pub sound_format: crate::backend::sfx::Format,
 }
 
 pub struct Chatbot {

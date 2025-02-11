@@ -1,5 +1,5 @@
 use backend::config::AppConfig;
-use backend::sounds::{Sounds, FILES};
+use backend::sfx::{Sounds, FILES};
 use backend::watcher::Watcher;
 use eframe::egui::{self};
 use rodio::{Decoder, OutputStream};
@@ -28,6 +28,16 @@ pub struct ChatMessage {
     pub message_text: String,
     pub badges: Vec<String>,
     pub username: String,
+}
+
+#[derive(Default)]
+pub enum Roles {
+    Broadcaster,
+    Vip,
+    Moderator,
+    Sub(usize),
+    #[default]
+    None,
 }
 
 impl From<PrivmsgMessage> for ChatMessage {
@@ -63,11 +73,6 @@ async fn main() {
         handle_frontend_to_backend_messages(backend_rx, backend_tx.clone(), stream_handle).await;
     });
     info!("Starting chatbot");
-    let mut watcher = Watcher::serve();
-    let _ = watcher.watch(Path::new("./assets/sounds/"));
-    Sounds::serve().unwrap();
-    let _ = watcher.push_files().await;
-
     let _ = eframe::run_native(
         "Yambot",
         native_options,
@@ -98,24 +103,12 @@ async fn handle_twitch_messages(channel_name: String, stream_handle: Arc<OutputS
         TwitchIRCClient::<SecureTCPTransport, StaticLoginCredentials>::new(config);
     client.join(channel_name.clone()).unwrap();
 
-    // For now :)
-    //    let mut watcher = Watcher::serve();
-    //    let _ = watcher.watch(Path::new("./assets/sounds"));
-    //    let sounds = Sounds::collect(watcher);
-
     while let Some(message) = incoming_messages.recv().await {
         match message {
             twitch_irc::message::ServerMessage::Privmsg(privmsg) => {
                 let chat_message: ChatMessage = privmsg.into();
                 println!("Message: {:?}", chat_message);
-                if chat_message.message_text.starts_with('!') {
-                    let command = chat_message.message_text.split_whitespace().next().unwrap();
-                    let command = &command[1..];
-                    if FILES.lock().unwrap().contains(command) {
-                        let file = &format!("{}.{}", command, Sounds::get_format());
-                        play_sound(file, stream_handle.clone()).await;
-                    }
-                }
+                if let Some(command) = chat_message.message_text.strip_prefix('!') {}
                 messages.push(chat_message);
             }
             twitch_irc::message::ServerMessage::Join(join_msg) => {
@@ -197,18 +190,5 @@ async fn handle_frontend_to_backend_messages(
                 println!("Received other message: {:?}", message);
             }
         }
-    }
-}
-
-async fn play_sound(sound_file: &str, stream_handle: Arc<OutputStreamHandle>) {
-    let sound_path = "./assets/sounds/".to_string() + sound_file;
-    if let Ok(file) = File::open(Path::new(&sound_path)) {
-        let source = Decoder::new(BufReader::new(file)).unwrap();
-        let sink = Sink::try_new(&*stream_handle).unwrap();
-        sink.set_volume(0.5);
-        sink.append(source);
-        sink.detach();
-    } else {
-        println!("Could not open sound file: {}", sound_path);
     }
 }

@@ -1,3 +1,5 @@
 pub mod config;
-pub mod sounds;
-pub mod watcher;
+pub(super) mod sounds;
+
+pub use sounds::sfx;
+pub use sounds::watcher;
