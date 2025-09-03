@@ -1,8 +1,7 @@
 use crate::backend::sfx::SoundsManager;
 use backend::config::AppConfig;
 use eframe::egui::{self};
-use rodio::{Decoder, OutputStream};
-use rodio::{OutputStreamHandle, Sink};
+use rodio::{Decoder, OutputStream, Sink};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
@@ -62,9 +61,9 @@ async fn main() {
         .await
         .expect("Sound manager initialization");
 
-    let (_stream, stream_handle) = sounds_manager.get_stream();
+    let stream_handle = sounds_manager.get_stream_handle();
     tokio::spawn(async move {
-        handle_frontend_to_backend_messages(backend_rx, backend_tx.clone(), stream_handle).await;
+        handle_frontend_to_backend_messages(backend_rx, backend_tx.clone(), &stream_handle).await;
     });
     info!("Starting chatbot");
     let _ = eframe::run_native(
@@ -125,7 +124,7 @@ async fn handle_twitch_messages(channel_name: String) {
 async fn handle_frontend_to_backend_messages(
     mut backend_rx: tokio::sync::mpsc::Receiver<FrontendToBackendMessage>,
     backend_tx: tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
-    stream_handle: rodio::OutputStreamHandle,
+    stream_handle: &rodio::OutputStream,
 ) {
     let stream_handle = Arc::new(stream_handle);
 
@@ -185,11 +184,11 @@ async fn handle_frontend_to_backend_messages(
     }
 }
 
-async fn play_sound(sound_file: String, stream_handle: Arc<OutputStreamHandle>) {
+async fn play_sound(sound_file: String, stream_handle: Arc<OutputStream>) {
     let sound_path = "./assets/sounds/".to_string() + &sound_file;
     if let Ok(file) = File::open(Path::new(&sound_path)) {
         let source = Decoder::new(BufReader::new(file)).unwrap();
-        let sink = Sink::try_new(&*stream_handle).unwrap();
+        let sink = Sink::connect_new(stream_handle.mixer());
         sink.set_volume(0.5);
         sink.append(source);
         sink.detach();

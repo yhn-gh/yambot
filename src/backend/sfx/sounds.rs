@@ -1,4 +1,3 @@
-use rodio::{OutputStream, OutputStreamHandle};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json};
 use std::{collections::HashSet, path::PathBuf, sync::Arc};
@@ -8,8 +7,6 @@ use crate::backend::config;
 
 const SOUNDLIST_PATH: &str = "./assets/soundlist.json";
 const SOUNDS_DIRECTORY: &str = "./assets/sounds/";
-
-type StreamHandle = Arc<OutputStreamHandle>;
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default)]

@@ -2,7 +2,7 @@ mod sounds;
 mod watcher;
 use serde::{Deserialize, Serialize};
 
-use rodio::{OutputStream, OutputStreamHandle};
+use rodio::{OutputStream, OutputStreamBuilder};
 
 use std::{
     collections::HashSet,
@@ -34,8 +34,7 @@ pub struct SoundsManager {
     soundlist: Soundlist,
     ignore_list: HashSet<String>,
 
-    stream: OutputStream,
-    stream_handle: OutputStreamHandle,
+    stream_handle: OutputStream,
 }
 
 impl SoundsManager {
@@ -49,13 +48,12 @@ impl SoundsManager {
 
         let soundlist = Soundlist::serve().await?;
 
-        let (stream, stream_handle) = OutputStream::try_default()?;
+        let stream_handle = OutputStreamBuilder::open_default_stream()?;
         Ok(Self {
             sounds_path,
             watcher,
             soundlist,
             ignore_list: HashSet::new(),
-            stream,
             stream_handle,
         })
     }
@@ -68,7 +66,7 @@ impl SoundsManager {
         &self.watcher
     }
 
-    pub fn get_stream(self) -> (OutputStream, OutputStreamHandle) {
-        (self.stream, self.stream_handle)
+    pub fn get_stream_handle(self) -> OutputStream {
+        self.stream_handle
     }
 }
