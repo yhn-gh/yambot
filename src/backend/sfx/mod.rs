@@ -1,4 +1,5 @@
 mod sounds;
+mod tts;
 mod watcher;
 use serde::{Deserialize, Serialize};
 
