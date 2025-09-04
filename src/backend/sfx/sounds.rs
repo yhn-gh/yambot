@@ -1,7 +1,8 @@
+use crate::backend::{Command, Parser};
 use rodio::{OutputStream, OutputStreamHandle};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json};
-use std::{collections::HashSet, path::PathBuf, sync::Arc};
+use std::{collections::HashSet, path::Path, path::PathBuf, sync::Arc};
 
 use super::{Format, FILES};
 use crate::backend::config;
@@ -15,6 +16,23 @@ type StreamHandle = Arc<OutputStreamHandle>;
 #[derive(Serialize, Deserialize, Default)]
 pub struct Soundlist {
     sounds: HashSet<String>,
+}
+
+#[derive(Debug)]
+pub struct Sound(Arc<Path>);
+
+impl Parser for Soundlist {
+    type Item = Sound;
+    fn parse(&self, c: &Command) -> Option<Self::Item> {
+        let sound = c.name();
+        if self.sounds.contains(sound) {
+            let path = Path::new("{SOUNDLIST_PATH}{sound}");
+            let sound = Sound(Arc::from(path));
+            Some(sound)
+        } else {
+            None
+        }
+    }
 }
 
 impl Soundlist {

@@ -25,6 +25,23 @@ pub enum Format {
     Mp3,
 }
 
+#[tokio::test]
+async fn test_parser() -> Result<(), Box<dyn std::error::Error>> {
+    use crate::backend::Command;
+    use crate::backend::Parser;
+    let soundlist = Soundlist::serve().await?;
+
+    let cmd = Command {
+        name: "test".into(),
+        args: None,
+    };
+    assert!(
+        soundlist.parse(&cmd).is_some(),
+        "No sound file named `test`"
+    );
+    Ok(())
+}
+
 // public interface for all things sounds/sfx-related
 #[non_exhaustive]
 pub struct SoundsManager {
