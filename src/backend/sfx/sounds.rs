@@ -1,4 +1,4 @@
-use crate::backend::{Command, Parser};
+use crate::backend::command::{Command, Parser};
 use rodio::{OutputStream, OutputStreamHandle};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, json};

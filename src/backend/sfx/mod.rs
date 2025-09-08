@@ -27,14 +27,11 @@ pub enum Format {
 
 #[tokio::test]
 async fn test_parser() -> Result<(), Box<dyn std::error::Error>> {
-    use crate::backend::Command;
-    use crate::backend::Parser;
+    use crate::backend::command::Command;
+    use crate::backend::command::Parser;
     let soundlist = Soundlist::serve().await?;
 
-    let cmd = Command {
-        name: "test".into(),
-        args: None,
-    };
+    let cmd = Command::new("test".into(), None);
     assert!(
         soundlist.parse(&cmd).is_some(),
         "No sound file named `test`"
