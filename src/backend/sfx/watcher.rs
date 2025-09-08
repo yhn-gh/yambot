@@ -95,7 +95,7 @@ impl Watcher {
                         match event {
                             SoundEvent::Add(file) => {
                                 log::info!("Added sound file: {}", file.display());
-                                lock.insert(String::from(filename));
+                                lock.insert(filename.to_owned());
                             }
                             SoundEvent::Remove(file) => {
                                 log::info!("Removing sound file: {}", file.display());

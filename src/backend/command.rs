@@ -13,6 +13,10 @@ impl Command {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    pub fn args(&self) -> &Option<Arc<[String]>> {
+        &self.args
+    }
 }
 
 pub trait Parser: Sized {

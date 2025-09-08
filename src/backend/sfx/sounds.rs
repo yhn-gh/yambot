@@ -1,7 +1,6 @@
 use crate::backend::command::{Command, Parser};
 use rodio::{OutputStream, OutputStreamHandle};
 use serde::{Deserialize, Serialize};
-use serde_json::{self, json};
 use std::{collections::HashSet, path::Path, path::PathBuf, sync::Arc};
 
 use super::{Format, FILES};
@@ -14,20 +13,20 @@ type StreamHandle = Arc<OutputStreamHandle>;
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default)]
+// rename it to SoundConfig or SfxConfig, if its gonna have more than just hashset
 pub struct Soundlist {
     sounds: HashSet<String>,
 }
 
-#[derive(Debug)]
-pub struct Sound(Arc<Path>);
+type Sound = Arc<Path>;
 
 impl Parser for Soundlist {
     type Item = Sound;
     fn parse(&self, c: &Command) -> Option<Self::Item> {
-        let sound = c.name();
-        if self.sounds.contains(sound) {
+        let command = c.name();
+        if self.sounds.contains(command) {
             let path = Path::new("{SOUNDLIST_PATH}{sound}");
-            let sound = Sound(Arc::from(path));
+            let sound = Arc::from(path);
             Some(sound)
         } else {
             None
@@ -80,8 +79,8 @@ impl Soundlist {
                         Ok(entry) => {
                             let file = entry.path();
                             if let Some((filename, _)) = Self::is_soundfile(&file) {
-                                self.sounds.insert(String::from(filename));
-                                lock.insert(filename.to_string());
+                                self.sounds.insert(filename.to_owned());
+                                lock.insert(filename.to_owned());
                             }
                         }
                         Err(e) => log::error!("Sound file error: {}", e),
