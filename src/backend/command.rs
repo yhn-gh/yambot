@@ -19,8 +19,8 @@ impl Command {
     }
 }
 
-pub trait Parser: Sized {
+pub trait Parser<'p>: Sized {
     type Item;
 
-    fn parse(&self, c: &Command) -> Option<Self::Item>;
+    fn parse(&'p self, c: &Command) -> Option<Self::Item>;
 }

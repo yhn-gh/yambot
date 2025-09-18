@@ -1,12 +1,13 @@
 use notify::{
     event::{EventKind, ModifyKind, RenameMode},
-    RecommendedWatcher, Watcher as _Watcher,
+   RecommendedWatcher, Watcher as _Watcher,
 };
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
     time::Duration,
 };
+
 use tokio::{
     pin,
     sync::{mpsc, watch},

@@ -3,13 +3,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-pub struct TTSMessage {
+pub struct TTSMessage<'a> {
     text: String,
-    lang_code: String,
+    language: &'a Language,
 }
 
-struct TTSHandler {
-    queue: std::collections::VecDeque<TTSMessage>,
+struct TTSHandler<'a> {
+    queue: std::collections::VecDeque<TTSMessage<'a>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -24,25 +24,29 @@ struct TTSConfig {
     blocked_phrases: Vec<String>,
 }
 
-impl TTSMessage {
-    pub fn new(text: String, lang_code: String) -> Self {
-        Self { text, lang_code }
+impl<'a> TTSMessage<'a> {
+    pub fn new(text: String, language: &'a Language) -> Self {
+        Self { text, language }
+    }
+    
+    pub async fn recv_tts(&self) -> Result<reqwest::Response, Box< dyn std::error::Error>>{
+        let recv = reqwest::get("https://translate.google.com/translate_tts?ie=UTF-8&tl={self.lang_code}&client=tw-ob&q={self.text}").await?;
+        Ok(recv)
     }
 }
 
-impl Parser for TTSConfig {
-    type Item = TTSMessage;
+impl<'p> Parser<'p> for TTSConfig {
+    type Item = TTSMessage<'p>;
 
-    fn parse(&self, c: &Command) -> Option<Self::Item> {
+    fn parse(&'p self, c: &Command) -> Option<Self::Item> {
         let command = c.name();
         let args = c.args();
         let langs = &self.langs;
         if let Some(args) = args {
             let lang = langs.iter().find(|x| x.alias == command)?;
             let text = args.join(" ");
-
-            // yucky clone; TODO: string interning
-            Some(TTSMessage::new(text, lang.lang_code.to_owned()))
+            
+            Some(TTSMessage::new(text, lang))
         } else {
             None
         }

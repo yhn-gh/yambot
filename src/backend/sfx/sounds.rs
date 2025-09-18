@@ -20,7 +20,7 @@ pub struct Soundlist {
 
 type Sound = Arc<Path>;
 
-impl Parser for Soundlist {
+impl Parser<'_> for Soundlist {
     type Item = Sound;
     fn parse(&self, c: &Command) -> Option<Self::Item> {
         let command = c.name();
