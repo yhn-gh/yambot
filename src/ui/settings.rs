@@ -12,6 +12,11 @@ impl Chatbot {
                 ui.label("Auth token:");
                 ui.add(egui::TextEdit::singleline(&mut self.config.auth_token).password(true))
             });
+            ui.horizontal(|ui| {
+                ui.label("Client Id:");
+                ui.add(egui::TextEdit::singleline(&mut self.config.client_id).password(true))
+            });
+
             ui.add_space(10.0);
             ui.horizontal(|ui| {
                 let format = match self.config.sound_format {
@@ -36,6 +41,7 @@ impl Chatbot {
                     .try_send(FrontendToBackendMessage::UpdateConfig(ChatbotConfig {
                         channel_name: self.config.channel_name.clone(),
                         auth_token: self.config.auth_token.clone(),
+                        client_id: self.config.client_id.clone(),
                         sound_format: self.config.sound_format.clone(),
                     }))
                     .unwrap();

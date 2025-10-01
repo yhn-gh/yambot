@@ -57,6 +57,7 @@ async fn main() {
         ..Default::default()
     };
     let config = backend::config::load_config();
+    let event_sub_connection = crate::backend::helix::EventSubConnection::new().await.ok();
 
     let sounds_manager = SoundsManager::new()
         .await
