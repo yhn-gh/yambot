@@ -1,4 +1,4 @@
 pub mod command;
 pub mod config;
 pub mod sfx;
-pub mod helix;
+pub mod twitch_api;

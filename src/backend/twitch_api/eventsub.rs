@@ -1,36 +1,34 @@
 use tungstenite::Message;
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::StreamExt;
 use tungstenite::client::IntoClientRequest;
 use std::collections::HashMap;
+use std::sync::Arc;
+use crate::backend;
+use super::helix::Subscription;
 
 pub struct EventSubConnection {
-    session: Option<String>,
+    pub session: Option<String>,
     pub rx: mpsc::UnboundedReceiver<Event>,
 }
 
-#[non_exhaustive]
-enum Subscription {
-    ChannelChatMessage
-}
-
-enum EventSubMessage {
-    None,
-    SessionId(String),
-    Event(Option<Event>),
-}
-
+#[derive(Debug)]
 struct Event {
     subscription: Subscription,
     event: Value,
+}
+
+enum EventSubMessage {
+    SessionId(String),
+    Event(Option<Event>),
 }
 
 type WelcomeDone = Option<oneshot::Sender<String>>;
 
 impl EventSubConnection {
     // TODO In case session dies should make a new one
-    pub async fn new() -> Result<Self, tungstenite::Error> {
+    pub(super) async fn serve() -> Result<Self, tungstenite::Error> {
         let request = "wss://eventsub.wss.twitch.tv/ws".into_client_request().unwrap();
         let (mut ws_stream, _) = tokio_tungstenite::connect_async(request).await?;
         let (tx, rx) = mpsc::unbounded_channel();
@@ -40,28 +38,30 @@ impl EventSubConnection {
         
         tokio::spawn(async move {
             while let Some(recv) = ws_stream.next().await {
-                let msg: Option<EventSubMessage> = match recv.unwrap() {
+                // remove unwrap
+                let recv = recv.unwrap();
+                let msg: Option<EventSubMessage> = match recv {
                     Message::Text(b) => Self::handle_message_bytes(b.as_bytes()).await.ok(),
                     _ => None,
                 };
+                // do declaratively this
                 if let Some(event) = msg {
                     match event {
                         EventSubMessage::SessionId(id) => {
-                            if let Some(sender) = (&mut tx_session).take() {
+                            if let Some(sender) = tx_session.take() {
                                 sender.send(id).ok();
                             };
                         },
                         EventSubMessage::Event(event) => {
                             Self::handle_sub_event(tx.clone(), event).await
                         },
-                        EventSubMessage::None => (),
                     };
                 };
             };
         });
         
         let session = rx_session.await.ok();
-        log::info!("{:?}", session);
+        log::info!("Session ID: {:?}", session);
 
         Ok(Self {
             session,
@@ -69,16 +69,11 @@ impl EventSubConnection {
         })
     }
 
-    pub async fn subscribe(&self, sub: Subscription) -> reqwest::Result<()> {
-        let session_id = &self.session;
-        todo!();
-        Ok(())
-    }
-
     async fn handle_sub_event(tx: mpsc::UnboundedSender<Event>, event: Option<Event>) {
         if let Some(event) = event {
             match event.subscription {
                 Subscription::ChannelChatMessage => {
+                    log::info!("{:?}", event);
                 },
                 _ => (),
             };
@@ -91,36 +86,28 @@ impl EventSubConnection {
         let mut payload: Value = map["payload"].take();
 
         let msg = match metadata["message_type"].as_str().expect("Twitch API returned unexpected data") {
-            "session_welcome" => EventSubMessage::SessionId(payload["session"]["id"].take().to_string()),
-            "notification" => EventSubMessage::Event(payload.try_into().ok()),
-            _ => EventSubMessage::None,
+            "session_welcome" => {
+                let id: String = serde_json::from_value(payload["session"]["id"].take())?;
+                EventSubMessage::SessionId(id)
+            },
+            "notification" => {
+                let payload = Event::parse(payload);
+                EventSubMessage::Event(payload)
+            },
+            _ => EventSubMessage::Event(None),
         };
         Ok(msg)
     }
 }
-
-impl TryFrom<&str> for Subscription {
-    // TODO change to io::Error
-    type Error = ();
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let s = match s {
-            "channel.chat.message" => Self::ChannelChatMessage,
-            _ => return Err(()),
-        };
-        Ok(s)
-    }
-}
-
-impl TryFrom<Value> for Event {
-    // TODO change to io::Error
-    type Error = ();
-    fn try_from(mut msg: Value) -> Result<Self, Self::Error> {
-        let subscription =  msg["subscription"].get_mut("type").ok_or(())?.to_string();
-        let event =  msg.get_mut("event").ok_or(())?.take();
+impl Event {
+    fn parse(mut msg: Value) -> Option<Self> {
+        let subscription = msg["subscription"]["type"].take();
+        let subscription = subscription.as_str()?;
+        let event =  msg["event"].take();
         let notification = Self {
-            subscription: (&*subscription).try_into()?,
+            subscription: subscription.try_into().ok()?,
             event,
         };
-        Ok(notification)
+        Some(notification)
     }
 }

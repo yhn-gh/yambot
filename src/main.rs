@@ -1,4 +1,5 @@
 use crate::backend::sfx::SoundsManager;
+use crate::backend::twitch_api;
 use backend::config::AppConfig;
 use eframe::egui::{self};
 use rodio::{Decoder, OutputStream};
@@ -57,13 +58,16 @@ async fn main() {
         ..Default::default()
     };
     let config = backend::config::load_config();
-    let event_sub_connection = crate::backend::helix::EventSubConnection::new().await.ok();
 
     let sounds_manager = SoundsManager::new()
         .await
         .expect("Sound manager initialization");
 
     let (_stream, stream_handle) = sounds_manager.get_stream();
+    
+    let event_sub_connection = twitch_api::Client::new().await.unwrap();
+
+    
     tokio::spawn(async move {
         handle_frontend_to_backend_messages(backend_rx, backend_tx.clone(), stream_handle).await;
     });
