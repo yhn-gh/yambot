@@ -182,7 +182,7 @@ async fn handle_frontend_to_backend_messages(
             }
             FrontendToBackendMessage::DisconnectFromChat(channel_name) => {
                 if let Some(client) = twitch_handler.take() {
-                    log::info!("Dropped client");
+                    log::info!("Dropping Twitch client");
                     drop(client);
                 }
             }

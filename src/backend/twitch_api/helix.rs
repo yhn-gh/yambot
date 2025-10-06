@@ -36,8 +36,9 @@ impl HelixClient {
         }
     }
 
-    // TODO add caching
     pub async fn set_user_id(&mut self) -> reqwest::Result<()> {
+        // should request only when adding new credentials
+        // otherwise should use stuff that is cached
         let user_id = Self::request_user_id().await?;
         self.user_id = Some(user_id);
         Ok(())

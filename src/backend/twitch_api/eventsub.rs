@@ -30,31 +30,28 @@ impl EventSubConnection {
         let request = "wss://eventsub.wss.twitch.tv/ws".into_client_request().unwrap();
         let (mut ws_stream, _) = tokio_tungstenite::connect_async(request).await?;
         let (tx, rx) = mpsc::unbounded_channel();
+        // tokio::SetOnce<T> would be more ergonomical(?) but its for tokio >=1.47.0
         let (session_tx, session_rx) = oneshot::channel();
         let mut session_tx = Some(session_tx);
 
         tokio::spawn(async move {
             loop {
                 tokio::select! {
-                    _ = tx.closed() => {
-                        log::info!("Killing connection");
-                        break;
-                    }
+                    _ = tx.closed() => break,
                     Some(recv) = ws_stream.next() => {
-                        Self::handle_message(recv.unwrap(), tx.clone(), &mut session_tx).await;
-                    }
+                        Self::handle_message(recv.unwrap(), &tx, &mut session_tx).await;
+                    },
                 };
             }
         });
-        let session = session_rx.await.ok();
         
         Ok(Self {
-            session,
+            session: session_rx.await.ok(),
             rx,
         })
     }
 
-    async fn handle_message(recv: Message, tx: mpsc::UnboundedSender<Event>, mut session_tx: &mut Option<oneshot::Sender<String>>) {
+    async fn handle_message(recv: Message, tx: &mpsc::UnboundedSender<Event>, mut session_tx: &mut Option<oneshot::Sender<String>>) {
         let msg: Option<EventSubMessage> = match recv {
             Message::Text(b) => Self::handle_message_bytes(b.as_bytes()).await.ok(),
             Message::Close(c) => {
@@ -79,7 +76,7 @@ impl EventSubConnection {
         };
     }
 
-    async fn handle_sub_event(tx: mpsc::UnboundedSender<Event>, event: Option<Event>) {
+    async fn handle_sub_event(tx: &mpsc::UnboundedSender<Event>, event: Option<Event>) {
         if let Some(event) = event {
             match event.subscription {
                 Subscription::ChannelChatMessage => {

@@ -1,7 +1,6 @@
 pub mod helix;
 pub mod eventsub;
 
-
 use helix::{HelixClient, Subscription};
 use eventsub::EventSubConnection;
 use tokio::sync::{mpsc, oneshot};
@@ -14,10 +13,10 @@ pub struct Client {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatMessage {
-    pub message_id: String,
+    // pub message_id: String,
     pub message_text: String,
-    pub badges: Vec<String>,
     pub username: String,
+    pub badges: Vec<String>,
 }
 
 impl Client {
@@ -30,8 +29,7 @@ impl Client {
 
         helix.set_user_id().await?;
         
-        // not unreachable; 400 on helix it can trigger this?
-        let Some(session_id) = &eventsub.session else { unreachable!() };
+        let session_id = eventsub.session.as_ref().unwrap();
         helix.subscribe(Subscription::ChannelChatMessage, session_id).await?;
 
         Ok(Self {
