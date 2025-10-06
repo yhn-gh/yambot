@@ -65,9 +65,6 @@ async fn main() {
 
     let (_stream, stream_handle) = sounds_manager.get_stream();
     
-    let event_sub_connection = twitch_api::Client::new().await.unwrap();
-
-    
     tokio::spawn(async move {
         handle_frontend_to_backend_messages(backend_rx, backend_tx.clone(), stream_handle).await;
     });
@@ -133,6 +130,7 @@ async fn handle_frontend_to_backend_messages(
     stream_handle: rodio::OutputStreamHandle,
 ) {
     let stream_handle = Arc::new(stream_handle);
+    let mut twitch_handler: Option<twitch_api::Client> = None;
 
     while let Some(message) = backend_rx.recv().await {
         match message {
@@ -179,11 +177,17 @@ async fn handle_frontend_to_backend_messages(
                 ));
             }
             FrontendToBackendMessage::ConnectToChat(channel_name) => {
-                tokio::spawn(async move {
-                    handle_twitch_messages(channel_name).await;
-                });
+                log::info!("Attempting to create Twitch API connection");
+                twitch_handler = twitch_api::Client::new().await.ok()
+            }
+            FrontendToBackendMessage::DisconnectFromChat(channel_name) => {
+                if let Some(client) = twitch_handler.take() {
+                    log::info!("Dropped client");
+                    drop(client);
+                }
             }
             _ => {
+                
                 println!("Received other message: {:?}", message);
             }
         }

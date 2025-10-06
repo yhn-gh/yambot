@@ -1,7 +1,6 @@
 use tungstenite::Message;
 use serde_json::{json, Map, Value};
 use tokio::sync::{mpsc, oneshot};
-use tokio_stream::StreamExt;
 use tungstenite::client::IntoClientRequest;
 use std::collections::{HashMap, HashSet};
 use crate::backend;
@@ -30,9 +29,18 @@ impl HelixClient {
             client: reqwest::Client::new(),
             auth_token: config.auth_token,
             client_id: config.client_id,
-            user_id: Self::get_user_id().await.ok(),
+            // can be None and then get_user_id be done in other
+            // function with reqwest::Result<T>
+            user_id: None,
             subscriptions: HashSet::new(),
         }
+    }
+
+    // TODO add caching
+    pub async fn set_user_id(&mut self) -> reqwest::Result<()> {
+        let user_id = Self::request_user_id().await?;
+        self.user_id = Some(user_id);
+        Ok(())
     }
     
     pub(super) async fn subscribe(&self, sub: Subscription, session_id: &str) -> reqwest::Result<()> {
@@ -57,8 +65,7 @@ impl HelixClient {
         Ok(())
     }
 
-    // Todo caching of user id
-    pub async fn get_user_id() -> reqwest::Result<u32> {
+    pub async fn request_user_id() -> reqwest::Result<u32> {
         let config = backend::config::load_config().chatbot;
 
         let mut body = reqwest::Client::new()
