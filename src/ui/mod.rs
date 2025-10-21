@@ -10,7 +10,7 @@ enum Section {
     Home,
     Sfx,
     Tts,
-    Settings,
+    Settings(settings::Settings),
 }
 #[derive(Debug)]
 pub enum FrontendToBackendMessage {
@@ -139,7 +139,7 @@ impl eframe::App for Chatbot {
                         self.selected_section = Section::Tts;
                     }
                     if ui.button("SETTINGS").clicked() {
-                        self.selected_section = Section::Settings;
+                        self.selected_section = Section::Settings(settings::Settings::default());
                     }
                 });
             });
@@ -150,7 +150,7 @@ impl eframe::App for Chatbot {
                 Section::Home => self.show_home(ui),
                 Section::Sfx => self.show_sfx(ui),
                 Section::Tts => self.show_tts(ui),
-                Section::Settings => self.show_settings(ui),
+                Section::Settings(_) => self.show_settings(ui),
             }
         });
 
