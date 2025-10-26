@@ -16,26 +16,26 @@ The user ID will only be cached after a successful chat connection
 or when you reverify by pressing the button above.
 ";
 
-
-
 struct Verify<'a> {
-    state: &'a mut Settings,
+    clicks: &'a u8,
+    verified: &'a bool,
 }
 
 impl<'a> Verify<'a> {
-    pub fn new(state: &'a mut Settings) -> Self {
+    pub fn new(clicks: &'a u8, verified: &'a bool) -> Self {
         Self {
-            state,
+            clicks,
+            verified,
         }
     }
 }
 
 impl<'a> Widget for Verify<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let mut clicks = self.state.clicks;
+        let clicks = self.clicks;
 
         let label: String = match clicks {
-            0.. if self.state.verified => "Verified!".into(),
+            0.. if *self.verified => "Verified!".into(),
             0 => "Save".into(),
             1 => "Verifying..".into(),
             2.. => format!("Verifying ({clicks})"),
@@ -52,14 +52,17 @@ pub enum Label {
 pub struct Settings {
     clicks: u8,
     pub verified: bool,
-    auth_visibility: bool,
-    client_visibility: bool,
+    // auth_visibility: bool,
+    // client_visibility: bool,
     pub label: Option<Label>,
 }
 
 impl Chatbot {
     pub fn show_settings(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
+            // TODO make this not suck ass
+            let super::Section::Settings(state) = &mut self.selected_section else {panic!()};
+
             ui.horizontal(|ui| {
                 ui.label("Channel name:");
                 ui.text_edit_singleline(&mut self.config.channel_name);
@@ -72,6 +75,7 @@ impl Chatbot {
                 ui.label("Client Id:");
                 ui.add(egui::TextEdit::singleline(&mut self.config.client_id).password(true))
             });
+
 
             ui.add_space(10.0);
             // TODO move to sfx tab
@@ -93,35 +97,33 @@ impl Chatbot {
             });
             ui.add_space(10.0);
 
-            if let super::Section::Settings(state) = &mut self.selected_section {
-                if ui.add(Verify::new(state)).clicked() {
-                    // would panic on integer overflow
-                    state.clicks += 1;
-                    let _ = self
-                        .frontend_tx
-                        .try_send(FrontendToBackendMessage::UpdateConfig(ChatbotConfig {
-                            channel_name: self.config.channel_name.clone(),
-                            auth_token: self.config.auth_token.clone(),
-                            client_id: self.config.client_id.clone(),
-                            user_id: self.config.user_id.clone(),
-                            sound_format: self.config.sound_format.clone(),
-                        }));
-                    self.frontend_tx.try_send(FrontendToBackendMessage::CacheUserId);
+            if ui.add(Verify::new(&state.clicks, &state.verified)).clicked() {
+                // would panic on integer overflow
+                state.clicks += 1;
+                let _ = self
+                    .frontend_tx
+                    .try_send(FrontendToBackendMessage::UpdateConfig(ChatbotConfig {
+                        channel_name: self.config.channel_name.clone(),
+                        auth_token: self.config.auth_token.clone(),
+                        client_id: self.config.client_id.clone(),
+                        user_id: self.config.user_id.clone(),
+                        sound_format: self.config.sound_format.clone(),
+                    }));
+                self.frontend_tx.try_send(FrontendToBackendMessage::CacheUserId);
+            };
+            if let Some(label) = &state.label {
+                state.clicks = 0;
+                match label {
+                    Label::Invalid => {
+                        ui.heading("Invalid credentials");
+                        ui.label(INVALID_CREDENTIALS)
+                    },
+                    Label::Unreached => {
+                        ui.heading("Connection error");
+                        ui.label(CONNECTION_ERROR)
+                    },
                 };
-                if let Some(label) = &state.label {
-                    state.clicks = 0;
-                    match label {
-                        Label::Invalid => {
-                            ui.heading("Invalid credentials");
-                            ui.label(INVALID_CREDENTIALS)
-                        },
-                        Label::Unreached => {
-                            ui.heading("Connection error");
-                            ui.label(CONNECTION_ERROR)
-                        },
-                    };
-                };
-            }; 
+            };
         });
     }
 }

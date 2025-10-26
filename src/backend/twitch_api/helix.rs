@@ -14,18 +14,17 @@ pub enum Subscription {
 }
 
 pub struct HelixClient {
-    client: reqwest::Client,
-    auth_token: String,
-    client_id: String,
-    channel_name: String,
-    user_id: Option<String>,
+    pub(super) client: reqwest::Client,
+    pub(super) auth_token: String,
+    pub(super) client_id: String,
+    pub(super) channel_name: String,
+    pub(super) user_id: Option<String>,
     // subscriptions: HashSet<Subscription>
 }
 
 impl HelixClient {
     pub(crate) async fn new() -> Self {
         let config = backend::config::load_config().chatbot;
-        
         Self {
             client: reqwest::Client::new(),
             auth_token: config.auth_token,
@@ -33,7 +32,7 @@ impl HelixClient {
             channel_name: config.channel_name,
             // can be None and then get_user_id be done in other
             // function with reqwest::Result<T>
-            user_id: None,
+            user_id: config.user_id,
             // subscriptions: HashSet::new(),
         }
     }
@@ -52,15 +51,6 @@ impl HelixClient {
         data[0]["id"].take().as_str().map(|x| x.into()).ok_or(Error::InvalidData)
     }
 
-
-    pub async fn set_user_id(&mut self) -> reqwest::Result<()> {
-        // should request only when adding new credentials
-        // otherwise should use stuff that is cached
-        let user_id = self.request_user_id().await;
-        self.user_id = user_id.ok();
-        Ok(())
-    }
-    
     pub(super) async fn subscribe(&self, sub: Subscription, session_id: &str) -> reqwest::Result<()> {
         let client = &self.client;
         let map = json!({

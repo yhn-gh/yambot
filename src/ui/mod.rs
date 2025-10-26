@@ -176,18 +176,34 @@ impl eframe::App for Chatbot {
                     self.labels.connect_button = "Connect".to_string();
                 }
                 BackendToFrontendMessage::GetUserId(id) => {
-                    if let Section::Settings(state) = &mut self.selected_section {
-                        use helix::Error as Error;
-                        match id {
-                            Ok(id) => {
-                                self.config.user_id = Some(id);
-                                state.verified = true;
-                                state.label = None;
-                            },
-                            Err(Error::InvalidData) => state.label = Some(settings::Label::Invalid),
-                            Err(Error::ReqwestError(_)) => state.label = Some(settings::Label::Unreached),
+                    if let Ok(id) = id {
+                        self.config.user_id = Some(id);
+                        
+                        if let Section::Settings(state) = &mut self.selected_section {
+                            state.verified = true;
+                            state.label = None;
+                        }
+                    } else {
+                        self.config.user_id = None;
+
+                        // should be in the settings.rs
+                        if let Section::Settings(state) = &mut self.selected_section {
+                            state.verified = false;
+                            
+                            use helix::Error as Error;
+                            match id.unwrap_err() {
+                                Error::InvalidData => state.label = Some(settings::Label::Invalid),
+                                Error::ReqwestError(_) => state.label = Some(settings::Label::Unreached),
+                            };
                         };
-                    }
+                    };
+
+                    // Saves config to file which is kinda weird
+                    // cause clicking verify sends UpdateConfig + CacheUserId;
+                    // and second one calls to config::save_config second time after UpdateConfig..
+                    let mut current_config = crate::backend::config::load_config();
+                    current_config.chatbot = self.config.clone();
+                    crate::backend::config::save_config(&current_config);
                 }
                 _ => {
                     println!("Received message");

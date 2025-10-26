@@ -27,7 +27,11 @@ impl Client {
 
         let eventsub = eventsub?;
 
-        helix.set_user_id().await?;
+        if helix.user_id.is_none() {
+            let user_id = helix.request_user_id().await;
+            helix.user_id = user_id.ok();
+        }
+
         
         let session_id = eventsub.session.as_ref().unwrap();
         helix.subscribe(Subscription::ChannelChatMessage, session_id).await?;
