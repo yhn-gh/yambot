@@ -1,5 +1,6 @@
 use egui::{ CentralPanel, Color32, TopBottomPanel };
 use serde::{ Deserialize, Serialize };
+use crate::backend::twitch_api::helix;
 
 pub mod home;
 pub mod settings;
@@ -22,6 +23,7 @@ pub enum FrontendToBackendMessage {
     ConnectToChat(String),
     DisconnectFromChat(String),
     PlaySound(String),
+    CacheUserId,
 }
 
 #[derive(Debug)]
@@ -32,6 +34,7 @@ pub enum BackendToFrontendMessage {
     SFXListUpdated,
     ChatMessageReceived(String),
     CreateLog(LogLevel, String),
+    GetUserId(Result<String, helix::Error>),
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
@@ -79,6 +82,7 @@ pub struct ChatbotConfig {
     pub channel_name: String,
     pub auth_token: String,
     pub client_id: String,
+    pub user_id: Option<String>,
     pub sound_format: crate::backend::sfx::Format,
 }
 
@@ -171,12 +175,25 @@ impl eframe::App for Chatbot {
                     self.labels.bot_status = response;
                     self.labels.connect_button = "Connect".to_string();
                 }
+                BackendToFrontendMessage::GetUserId(id) => {
+                    if let Section::Settings(state) = &mut self.selected_section {
+                        use helix::Error as Error;
+                        match id {
+                            Ok(id) => {
+                                self.config.user_id = Some(id);
+                                state.verified = true;
+                                state.label = None;
+                            },
+                            Err(Error::InvalidData) => state.label = Some(settings::Label::Invalid),
+                            Err(Error::ReqwestError(_)) => state.label = Some(settings::Label::Unreached),
+                        };
+                    }
+                }
                 _ => {
                     println!("Received message");
                 }
             }
         }
-
         ctx.request_repaint();
     }
 }

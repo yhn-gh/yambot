@@ -1,43 +1,60 @@
-use super::{ FrontendToBackendMessage, Chatbot, ChatbotConfig };
+use super::{ FrontendToBackendMessage, BackendToFrontendMessage, Chatbot, ChatbotConfig };
 use egui::{Widget, Ui, Response};
 use crate::backend::sfx::Format;
+use crate::backend::twitch_api;
 
-static VERIFICATION_FAILURE:&'static str = "\
-Verification failed
+static INVALID_CREDENTIALS:&'static str = "\
+Credentials inputted above were incorrect;
+The user ID will only be cached after a successful chat connection
+or when you reverify by pressing the button above,
+Credentials were saved, but you should still check whether they are right.
+";
+
+static CONNECTION_ERROR:&'static str = "\
 Could not reach the Twitch API to verify access and client tokens.
 The user ID will only be cached after a successful chat connection
 or when you reverify by pressing the button above.
 ";
 
 
+
 struct Verify<'a> {
-    clicks: &'a mut u8,
+    state: &'a mut Settings,
 }
 
 impl<'a> Verify<'a> {
-    pub fn new(clicks: &'a mut u8) -> Self {
+    pub fn new(state: &'a mut Settings) -> Self {
         Self {
-            clicks,
+            state,
         }
     }
 }
 
 impl<'a> Widget for Verify<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let mut clicks = self.clicks;
+        let mut clicks = self.state.clicks;
+
         let label: String = match clicks {
+            0.. if self.state.verified => "Verified!".into(),
             0 => "Save".into(),
             1 => "Verifying..".into(),
-            2.. => format!("Verifying ({clicks})")
+            2.. => format!("Verifying ({clicks})"),
         };
         egui::Button::new(label).ui(ui)
     }
+}
+pub enum Label {
+    Unreached,
+    Invalid,
 }
 
 #[derive(Default)]
 pub struct Settings {
     clicks: u8,
-    unreached: bool,
+    pub verified: bool,
+    auth_visibility: bool,
+    client_visibility: bool,
+    pub label: Option<Label>,
 }
 
 impl Chatbot {
@@ -57,6 +74,7 @@ impl Chatbot {
             });
 
             ui.add_space(10.0);
+            // TODO move to sfx tab
             ui.horizontal(|ui| {
                 let format = match self.config.sound_format {
                     Format::Wav => ".wav",
@@ -76,7 +94,8 @@ impl Chatbot {
             ui.add_space(10.0);
 
             if let super::Section::Settings(state) = &mut self.selected_section {
-                if ui.add(Verify::new(&mut state.clicks)).clicked() {
+                if ui.add(Verify::new(state)).clicked() {
+                    // would panic on integer overflow
                     state.clicks += 1;
                     let _ = self
                         .frontend_tx
@@ -84,12 +103,23 @@ impl Chatbot {
                             channel_name: self.config.channel_name.clone(),
                             auth_token: self.config.auth_token.clone(),
                             client_id: self.config.client_id.clone(),
+                            user_id: self.config.user_id.clone(),
                             sound_format: self.config.sound_format.clone(),
-                        }))
-                        .unwrap();
+                        }));
+                    self.frontend_tx.try_send(FrontendToBackendMessage::CacheUserId);
                 };
-                if state.unreached {
-                    ui.label(VERIFICATION_FAILURE);
+                if let Some(label) = &state.label {
+                    state.clicks = 0;
+                    match label {
+                        Label::Invalid => {
+                            ui.heading("Invalid credentials");
+                            ui.label(INVALID_CREDENTIALS)
+                        },
+                        Label::Unreached => {
+                            ui.heading("Connection error");
+                            ui.label(CONNECTION_ERROR)
+                        },
+                    };
                 };
             }; 
         });

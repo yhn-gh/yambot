@@ -17,30 +17,47 @@ pub struct HelixClient {
     client: reqwest::Client,
     auth_token: String,
     client_id: String,
-    user_id: Option<u32>,
-    subscriptions: HashSet<Subscription>
+    channel_name: String,
+    user_id: Option<String>,
+    // subscriptions: HashSet<Subscription>
 }
 
 impl HelixClient {
-    pub(super) async fn new() -> Self {
+    pub(crate) async fn new() -> Self {
         let config = backend::config::load_config().chatbot;
         
         Self {
             client: reqwest::Client::new(),
             auth_token: config.auth_token,
             client_id: config.client_id,
+            channel_name: config.channel_name,
             // can be None and then get_user_id be done in other
             // function with reqwest::Result<T>
             user_id: None,
-            subscriptions: HashSet::new(),
+            // subscriptions: HashSet::new(),
         }
     }
+    pub async fn request_user_id(&self) -> Result<String, Error> {
+        // move to separate function
+        let mut body = reqwest::Client::new()
+            .get(format!("{HELIX_URI}/users?login={}",&self.channel_name))
+            .bearer_auth(&self.auth_token)
+            .header("Client-Id", &self.client_id)
+            .send()
+            .await?.json::<Map<String, Value>>().await?;
+        
+        let data = &mut body.get_mut("data").ok_or(Error::InvalidData)?;
+        
+        // data returns 0-len array over an Object instead of just an Object
+        data[0]["id"].take().as_str().map(|x| x.into()).ok_or(Error::InvalidData)
+    }
+
 
     pub async fn set_user_id(&mut self) -> reqwest::Result<()> {
         // should request only when adding new credentials
         // otherwise should use stuff that is cached
-        let user_id = Self::request_user_id().await?;
-        self.user_id = Some(user_id);
+        let user_id = self.request_user_id().await;
+        self.user_id = user_id.ok();
         Ok(())
     }
     
@@ -66,24 +83,17 @@ impl HelixClient {
         Ok(())
     }
 
-    pub async fn request_user_id() -> reqwest::Result<u32> {
-        let config = backend::config::load_config().chatbot;
+}
 
-        let mut body = reqwest::Client::new()
-            .get(format!("{HELIX_URI}/users?login={}",&config.channel_name))
-            .bearer_auth(&config.auth_token)
-            .header("Client-Id", &config.client_id)
-            .send()
-            .await?.json::<Map<String, Value>>().await?;
-        
-        // returns 0-len array over an Object instead of just an Object
-        let data = &mut body["data"][0];
+#[derive(Debug)]
+pub enum Error {
+    InvalidData,
+    ReqwestError(reqwest::Error),
+}
 
-        let id = data["id"].take().as_str()
-            .expect("Unexpected user data from Twitch API")
-            .parse()
-            .unwrap();
-        Ok(id)
+impl From<reqwest::Error> for Error {
+    fn from(error: reqwest::Error) -> Self {
+        Self::ReqwestError(error)
     }
 }
 
@@ -109,7 +119,7 @@ impl Subscription {
     
     // returns condition value convention for subscribing
     async fn condition(&self, client: &HelixClient) -> Value {
-        let user_id = client.user_id.unwrap_or_default().to_string();
+        let user_id = &client.user_id;
         match self {
             Subscription::ChannelChatMessage => json!({
                 "broadcaster_user_id": user_id,

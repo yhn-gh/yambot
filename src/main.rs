@@ -186,8 +186,15 @@ async fn handle_frontend_to_backend_messages(
                     drop(client);
                 }
             }
-            _ => {
+            FrontendToBackendMessage::CacheUserId => {
+                println!("Received cache message: {:?}", message);
+                // handle if the things hasn't changed to use cached things? 
+                let helix_client = twitch_api::HelixClient::new().await;
                 
+                let user_id = helix_client.request_user_id().await;
+                backend_tx.try_send(BackendToFrontendMessage::GetUserId(user_id)).unwrap();
+            }
+            _ => {
                 println!("Received other message: {:?}", message);
             }
         }

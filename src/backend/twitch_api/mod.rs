@@ -1,7 +1,7 @@
 pub mod helix;
 pub mod eventsub;
 
-use helix::{HelixClient, Subscription};
+pub use helix::{HelixClient, Subscription};
 use eventsub::EventSubConnection;
 use tokio::sync::{mpsc, oneshot};
 use serde::{Serialize, Deserialize};
