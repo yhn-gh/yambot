@@ -19,8 +19,9 @@ static SOUNDS_DIRECTORY: &str = "./assets/sounds/";
 
 pub static FILES: LazyLock<Mutex<HashSet<String>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
 
-#[derive(PartialEq, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, Serialize, Deserialize, Default, Debug, Clone)]
 pub enum Format {
+    #[default]
     Wav,
     Opus,
     Mp3,

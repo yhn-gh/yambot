@@ -77,7 +77,7 @@ struct LogMessage {
     timestamp: String,
     log_level: LogLevel,
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct ChatbotConfig {
     pub channel_name: String,
     pub auth_token: String,

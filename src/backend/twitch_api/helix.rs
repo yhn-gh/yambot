@@ -15,11 +15,8 @@ pub enum Subscription {
 }
 
 pub struct HelixClient {
-    pub(super) client: reqwest::Client,
-    pub(super) auth_token: String,
-    pub(super) client_id: String,
-    pub(super) channel_name: String,
-    pub(super) user_id: Option<String>,
+    pub client: reqwest::Client,
+    pub config: ChatbotConfig,
     // subscriptions: HashSet<Subscription>
 }
 
@@ -29,31 +26,27 @@ impl HelixClient {
     pub(crate) async fn new(mut config: ChatbotConfig) -> Self {
         Self {
             client: reqwest::Client::new(),
-            auth_token: config.auth_token,
-            client_id: config.client_id,
-            channel_name: config.channel_name,
-            // can be None and then get_user_id be done in other
-            // function with reqwest::Result<T>
-            user_id: config.user_id,
+            config: config,
+            // auth_token: config.auth_token,
+            // client_id: config.client_id,
+            // channel_name: config.channel_name,
+            // user_id: config.user_id,
             // subscriptions: HashSet::new(),
         }
     }
     pub async fn request_user_id(&self) -> Result<String, Error> {
-        // move to separate function
-        let mut body = reqwest::Client::new()
-            .get(format!("{HELIX_URI}/users?login={}",&self.channel_name))
-            .bearer_auth(&self.auth_token)
-            .header("Client-Id", &self.client_id)
+        let mut body: Map<String, Value> = reqwest::Client::new()
+            .get(format!("{HELIX_URI}/users?login={}",&self.config.channel_name))
+            .bearer_auth(&self.config.auth_token)
+            .header("Client-Id", &self.config.client_id)
             .send()
-            .await?.json::<Map<String, Value>>().await?;
+            .await?.json().await?;
         
-        let data = &mut body.get_mut("data").ok_or(Error::InvalidData)?;
-        
-        // data returns 0-len array over an Object instead of just an Object
-        // TODO should use iterators for less verbose error-handling
-        data.get_mut(0).ok_or(Error::InvalidData)?.take()
-            .get_mut("id").ok_or(Error::InvalidData)?.take()
-            .as_str().map(|x| x.into()).ok_or(Error::InvalidData)
+        body.get_mut("data")
+            .and_then(|x| x.get_mut(0)) // data returns 0-len array
+            .and_then(|x| x.get_mut("id"))
+            .and_then(|x| x.as_str())
+            .map(|x| x.into()).ok_or(Error::InvalidData)
     }
 
     pub(super) async fn subscribe(&self, sub: Subscription, session_id: &str) -> reqwest::Result<()> {
@@ -69,8 +62,8 @@ impl HelixClient {
         });
         
         let post = client.post(format!("{HELIX_URI}/eventsub/subscriptions"))
-            .bearer_auth(&self.auth_token)
-            .header("Client-Id", &self.client_id)
+            .bearer_auth(&self.config.auth_token)
+            .header("Client-Id", &self.config.client_id)
             .json(&map);
         
         let res = post.send().await?.text().await?;
@@ -114,7 +107,7 @@ impl Subscription {
     
     // returns condition value convention for subscribing
     async fn condition(&self, client: &HelixClient) -> Value {
-        let user_id = &client.user_id;
+        let user_id = &client.config.user_id;
         match self {
             Subscription::ChannelChatMessage => json!({
                 "broadcaster_user_id": user_id,

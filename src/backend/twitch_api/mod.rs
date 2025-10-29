@@ -28,9 +28,9 @@ impl Client {
 
         let eventsub = eventsub?;
 
-        if helix.user_id.is_none() {
+        if helix.config.user_id.is_none() {
             let user_id = helix.request_user_id().await;
-            helix.user_id = user_id.ok();
+            helix.config.user_id = user_id.ok();
         }
 
         

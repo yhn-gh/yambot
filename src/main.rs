@@ -163,10 +163,10 @@ async fn handle_frontend_to_backend_messages(
                 ));
             }
             FrontendToBackendMessage::UpdateConfig(mut config) => {
-                // clone happens here but there's no reason for it to be here if it will hold references instead of owning types
-                let helix_client = twitch_api::HelixClient::new(config.clone()).await;
+                let mut helix_client = twitch_api::HelixClient::new(config).await;
                 let id = helix_client.request_user_id().await;
-
+                
+                let mut config = std::mem::take(&mut helix_client.config);
 
                 let (id, callback) = match id {
                     Ok(id) => (Some(id), None),
