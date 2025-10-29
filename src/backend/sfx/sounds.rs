@@ -9,7 +9,7 @@ use crate::backend::config;
 const SOUNDLIST_PATH: &str = "./assets/soundlist.json";
 const SOUNDS_DIRECTORY: &str = "./assets/sounds/";
 
-type StreamHandle = Arc<OutputStreamHandle>;
+// type StreamHandle = Arc<OutputStreamHandle>;
 
 #[non_exhaustive]
 #[derive(Serialize, Deserialize, Default)]

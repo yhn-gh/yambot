@@ -3,7 +3,6 @@ pub mod eventsub;
 
 pub use helix::{HelixClient, Subscription};
 use eventsub::EventSubConnection;
-use tokio::sync::{mpsc, oneshot};
 use serde::{Serialize, Deserialize};
 use crate::ui::ChatbotConfig;
 

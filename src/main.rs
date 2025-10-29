@@ -9,10 +9,6 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use std::sync::Arc;
-use twitch_irc::login::StaticLoginCredentials;
-use twitch_irc::message::PrivmsgMessage;
-use twitch_irc::TwitchIRCClient;
-use twitch_irc::{ClientConfig, SecureTCPTransport};
 use ui::{BackendToFrontendMessage, FrontendToBackendMessage};
 
 pub mod backend;
@@ -28,22 +24,6 @@ pub struct ChatMessage {
     pub message_text: String,
     pub badges: Vec<String>,
     pub username: String,
-}
-
-impl From<PrivmsgMessage> for ChatMessage {
-    fn from(privmsg: PrivmsgMessage) -> Self {
-        let badges = privmsg
-            .badges
-            .into_iter()
-            .map(|badge| format!("{}-{}", badge.name, badge.version))
-            .collect();
-        ChatMessage {
-            message_id: privmsg.message_id,
-            message_text: privmsg.message_text,
-            badges,
-            username: privmsg.sender.login,
-        }
-    }
 }
 
 #[tokio::main]
@@ -91,45 +71,12 @@ async fn main() {
     .map_err(|e| error!("Error: {:?}", e));
 }
 
-async fn handle_twitch_messages(channel_name: String) {
-    // TODO: add messages to local db
-    let mut messages: Vec<ChatMessage> = Vec::new();
-    let config: ClientConfig<StaticLoginCredentials> = ClientConfig::default();
-    let (mut incoming_messages, client) =
-        TwitchIRCClient::<SecureTCPTransport, StaticLoginCredentials>::new(config);
-    client.join(channel_name.clone()).unwrap();
-
-    while let Some(message) = incoming_messages.recv().await {
-        match message {
-            twitch_irc::message::ServerMessage::Privmsg(privmsg) => {
-                let chat_message: ChatMessage = privmsg.into();
-                println!("Message: {:?}", chat_message);
-                messages.push(chat_message);
-            }
-            twitch_irc::message::ServerMessage::Join(join_msg) => {
-                println!("User joined: {}", join_msg.user_login);
-            }
-            twitch_irc::message::ServerMessage::Part(part_msg) => {
-                println!("User left: {}", part_msg.user_login);
-            }
-            twitch_irc::message::ServerMessage::Whisper(whisper_message) => {
-                println!(
-                    "User {}, whispered message {}",
-                    whisper_message.sender.login, whisper_message.message_text
-                );
-            }
-            _ => {
-                println!("Received other message: {:?}", message);
-            }
-        }
-    }
-}
 async fn handle_frontend_to_backend_messages(
     mut backend_rx: tokio::sync::mpsc::Receiver<FrontendToBackendMessage>,
     backend_tx: tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
     stream_handle: rodio::OutputStreamHandle,
 ) {
-    let stream_handle = Arc::new(stream_handle);
+    let _stream_handle = Arc::new(stream_handle);
     let mut twitch_handler: Option<twitch_api::Client> = None;
 
     while let Some(message) = backend_rx.recv().await {
@@ -162,7 +109,7 @@ async fn handle_frontend_to_backend_messages(
                     "SFX config updated".to_string(),
                 ));
             }
-            FrontendToBackendMessage::UpdateConfig(mut config) => {
+            FrontendToBackendMessage::UpdateConfig(config) => {
                 let mut helix_client = twitch_api::HelixClient::new(config).await;
                 let id = helix_client.request_user_id().await;
                 
@@ -188,12 +135,12 @@ async fn handle_frontend_to_backend_messages(
                     "Chatbot config updated".to_string(),
                 ));
             }
-            FrontendToBackendMessage::ConnectToChat(channel_name) => {
+            FrontendToBackendMessage::ConnectToChat(_) => {
                 log::info!("Attempting to create Twitch API connection");
                 let config = backend::config::load_config().chatbot;
                 twitch_handler = twitch_api::Client::new(config).await.ok()
             }
-            FrontendToBackendMessage::DisconnectFromChat(channel_name) => {
+            FrontendToBackendMessage::DisconnectFromChat(_) => {
                 if let Some(client) = twitch_handler.take() {
                     log::info!("Dropping Twitch client");
                     drop(client);

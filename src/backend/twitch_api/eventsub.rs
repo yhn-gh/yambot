@@ -1,10 +1,8 @@
 use tungstenite::Message;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value};
 use tokio::sync::{mpsc, oneshot};
-use tokio_stream::{Stream, StreamExt};
+use tokio_stream::{StreamExt};
 use tungstenite::client::IntoClientRequest;
-use std::collections::HashMap;
-use crate::backend;
 use super::helix::Subscription;
 
 pub struct EventSubConnection {
@@ -51,7 +49,7 @@ impl EventSubConnection {
         })
     }
 
-    async fn handle_message(recv: Message, tx: &mpsc::UnboundedSender<Event>, mut session_tx: &mut Option<oneshot::Sender<String>>) {
+    async fn handle_message(recv: Message, tx: &mpsc::UnboundedSender<Event>, session_tx: &mut Option<oneshot::Sender<String>>) {
         let msg: Option<EventSubMessage> = match recv {
             Message::Text(b) => Self::handle_message_bytes(b.as_bytes()).await.ok(),
             Message::Close(c) => {
@@ -80,7 +78,8 @@ impl EventSubConnection {
         if let Some(event) = event {
             match event.subscription {
                 Subscription::ChannelChatMessage => {
-                    log::info!("{:?}", event);
+                    log::info!("{:?}", event.event);
+                    let _ = tx.send(event);
                 },
                 _ => (),
             };
@@ -89,7 +88,7 @@ impl EventSubConnection {
     
     async fn handle_message_bytes(bytes: &[u8]) -> serde_json::Result<EventSubMessage> {
         let mut map: Map<String, Value> = serde_json::from_slice(bytes)?;
-        let mut metadata: Value = map["metadata"].take();
+        let metadata: Value = map["metadata"].take();
         let mut payload: Value = map["payload"].take();
 
         let msg = match metadata["message_type"].as_str().expect("Twitch API returned unexpected data") {

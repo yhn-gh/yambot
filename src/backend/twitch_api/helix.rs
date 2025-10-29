@@ -1,9 +1,4 @@
-use tungstenite::Message;
 use serde_json::{json, Map, Value};
-use tokio::sync::{mpsc, oneshot};
-use tungstenite::client::IntoClientRequest;
-use std::collections::{HashMap, HashSet};
-use crate::backend;
 use crate::ui::ChatbotConfig;
 
 const HELIX_URI: &'static str = "https://api.twitch.tv/helix";
@@ -23,7 +18,7 @@ pub struct HelixClient {
 impl HelixClient {
     // should take ref to chatbot
     // should be zero copy too in signature of struct
-    pub(crate) async fn new(mut config: ChatbotConfig) -> Self {
+    pub(crate) async fn new(config: ChatbotConfig) -> Self {
         Self {
             client: reqwest::Client::new(),
             config: config,
@@ -66,7 +61,7 @@ impl HelixClient {
             .header("Client-Id", &self.config.client_id)
             .json(&map);
         
-        let res = post.send().await?.text().await?;
+        let _res = post.send().await?.text().await?;
         // should handle Non-authorized, Bad Request case
         Ok(())
     }

@@ -1,7 +1,6 @@
-use super::{ FrontendToBackendMessage, BackendToFrontendMessage, Chatbot, ChatbotConfig };
+use super::{ FrontendToBackendMessage, Chatbot };
 use egui::{Widget, Ui, Response};
 use crate::backend::sfx::Format;
-use crate::backend::twitch_api;
 
 static INVALID_CREDENTIALS:&'static str = "\
 Credentials inputted above were incorrect;

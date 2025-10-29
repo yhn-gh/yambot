@@ -1,7 +1,5 @@
 use crate::backend::command::{Command, Parser};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Arc;
 
 pub struct TTSMessage<'a> {
     text: String,
@@ -13,7 +11,7 @@ struct TTSHandler<'a> {
 }
 
 #[derive(Serialize, Deserialize)]
-struct Language {
+pub struct Language {
     lang_code: String,
     alias: String,
 }
