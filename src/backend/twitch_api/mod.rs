@@ -5,6 +5,7 @@ pub use helix::{HelixClient, Subscription};
 use eventsub::EventSubConnection;
 use tokio::sync::{mpsc, oneshot};
 use serde::{Serialize, Deserialize};
+use crate::ui::ChatbotConfig;
 
 pub struct Client {
     helix: HelixClient,
@@ -20,9 +21,9 @@ pub struct ChatMessage {
 }
 
 impl Client {
-    pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(config: ChatbotConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let (mut helix, eventsub) = tokio::join!(
-            HelixClient::new(),
+            HelixClient::new(config),
             EventSubConnection::serve());
 
         let eventsub = eventsub?;

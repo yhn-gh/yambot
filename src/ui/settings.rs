@@ -102,14 +102,7 @@ impl Chatbot {
                 state.clicks += 1;
                 let _ = self
                     .frontend_tx
-                    .try_send(FrontendToBackendMessage::UpdateConfig(ChatbotConfig {
-                        channel_name: self.config.channel_name.clone(),
-                        auth_token: self.config.auth_token.clone(),
-                        client_id: self.config.client_id.clone(),
-                        user_id: self.config.user_id.clone(),
-                        sound_format: self.config.sound_format.clone(),
-                    }));
-                self.frontend_tx.try_send(FrontendToBackendMessage::CacheUserId);
+                    .try_send(FrontendToBackendMessage::UpdateConfig(self.config.clone()));
             };
             if let Some(label) = &state.label {
                 state.clicks = 0;

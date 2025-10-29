@@ -162,15 +162,27 @@ async fn handle_frontend_to_backend_messages(
                     "SFX config updated".to_string(),
                 ));
             }
-            FrontendToBackendMessage::UpdateConfig(config) => {
+            FrontendToBackendMessage::UpdateConfig(mut config) => {
+                // clone happens here but there's no reason for it to be here if it will hold references instead of owning types
+                let helix_client = twitch_api::HelixClient::new(config.clone()).await;
+                let id = helix_client.request_user_id().await;
+
+
+                let (id, callback) = match id {
+                    Ok(id) => (Some(id), None),
+                    Err(e) => (None, Some(e)),
+                };
+
+                config.user_id = id;
+                let _ = backend_tx.try_send(BackendToFrontendMessage::GetUserId(callback));
+
                 let current_config: AppConfig = backend::config::load_config();
-                backend::config::save_config(
-                    &(AppConfig {
-                        chatbot: config,
-                        sfx: current_config.sfx,
-                        tts: current_config.tts,
-                    }),
-                );
+                backend::config::save_config(&AppConfig {
+                    chatbot: config,
+                    sfx: current_config.sfx,
+                    tts: current_config.tts,
+                });
+                
                 let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
                     ui::LogLevel::INFO,
                     "Chatbot config updated".to_string(),
@@ -178,21 +190,14 @@ async fn handle_frontend_to_backend_messages(
             }
             FrontendToBackendMessage::ConnectToChat(channel_name) => {
                 log::info!("Attempting to create Twitch API connection");
-                twitch_handler = twitch_api::Client::new().await.ok()
+                let config = backend::config::load_config().chatbot;
+                twitch_handler = twitch_api::Client::new(config).await.ok()
             }
             FrontendToBackendMessage::DisconnectFromChat(channel_name) => {
                 if let Some(client) = twitch_handler.take() {
                     log::info!("Dropping Twitch client");
                     drop(client);
                 }
-            }
-            FrontendToBackendMessage::CacheUserId => {
-                println!("Received cache message: {:?}", message);
-                // handle if the things hasn't changed to use cached things? 
-                let helix_client = twitch_api::HelixClient::new().await;
-                
-                let user_id = helix_client.request_user_id().await;
-                backend_tx.try_send(BackendToFrontendMessage::GetUserId(user_id)).unwrap();
             }
             _ => {
                 println!("Received other message: {:?}", message);

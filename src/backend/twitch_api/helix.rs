@@ -4,6 +4,7 @@ use tokio::sync::{mpsc, oneshot};
 use tungstenite::client::IntoClientRequest;
 use std::collections::{HashMap, HashSet};
 use crate::backend;
+use crate::ui::ChatbotConfig;
 
 const HELIX_URI: &'static str = "https://api.twitch.tv/helix";
 
@@ -23,8 +24,9 @@ pub struct HelixClient {
 }
 
 impl HelixClient {
-    pub(crate) async fn new() -> Self {
-        let config = backend::config::load_config().chatbot;
+    // should take ref to chatbot
+    // should be zero copy too in signature of struct
+    pub(crate) async fn new(mut config: ChatbotConfig) -> Self {
         Self {
             client: reqwest::Client::new(),
             auth_token: config.auth_token,
@@ -48,7 +50,10 @@ impl HelixClient {
         let data = &mut body.get_mut("data").ok_or(Error::InvalidData)?;
         
         // data returns 0-len array over an Object instead of just an Object
-        data[0]["id"].take().as_str().map(|x| x.into()).ok_or(Error::InvalidData)
+        // TODO should use iterators for less verbose error-handling
+        data.get_mut(0).ok_or(Error::InvalidData)?.take()
+            .get_mut("id").ok_or(Error::InvalidData)?.take()
+            .as_str().map(|x| x.into()).ok_or(Error::InvalidData)
     }
 
     pub(super) async fn subscribe(&self, sub: Subscription, session_id: &str) -> reqwest::Result<()> {
