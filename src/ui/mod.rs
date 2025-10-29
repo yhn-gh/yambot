@@ -34,6 +34,7 @@ pub enum BackendToFrontendMessage {
     SFXListUpdated,
     ChatMessageReceived(String),
     CreateLog(LogLevel, String),
+    // TODO: change to Result<(), helix::Error>
     GetUserId(Option<helix::Error>),
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -66,7 +67,7 @@ pub enum LogLevel {
 impl LogLevel {
     fn color(&self) -> Color32 {
         match self {
-            LogLevel::INFO => Color32::from_rgb(0, 255, 0),
+            LogLevel::INFO => Color32::from_rgb(200, 200, 200),
             LogLevel::WARN => Color32::from_rgb(255, 255, 0),
             LogLevel::ERROR => Color32::from_rgb(255, 50, 0),
         }
@@ -170,6 +171,7 @@ impl eframe::App for Chatbot {
                 BackendToFrontendMessage::CreateLog(log_level, message) => {
                     let message = LogMessage {
                         message,
+                        // TODO make local time 
                         timestamp: chrono::Local::now().to_string(),
                         log_level,
                     };

@@ -7,13 +7,13 @@ use super::helix::Subscription;
 
 pub struct EventSubConnection {
     pub session: Option<String>,
-    pub rx: mpsc::UnboundedReceiver<Event>,
+    pub rx: Option<mpsc::UnboundedReceiver<Event>>,
 }
 
 #[derive(Debug)]
-struct Event {
-    subscription: Subscription,
-    event: Value,
+pub struct Event {
+    pub subscription: Subscription,
+    pub event: Value,
 }
 
 enum EventSubMessage {
@@ -22,7 +22,6 @@ enum EventSubMessage {
     Close(tungstenite::Utf8Bytes),
 }
 
-
 impl EventSubConnection {
     pub(super) async fn serve() -> Result<Self, tungstenite::Error> {
         let request = "wss://eventsub.wss.twitch.tv/ws".into_client_request().unwrap();
@@ -30,6 +29,7 @@ impl EventSubConnection {
         let (tx, rx) = mpsc::unbounded_channel();
         // tokio::SetOnce<T> would be more ergonomical(?) but its for tokio >=1.47.0
         let (session_tx, session_rx) = oneshot::channel();
+
         let mut session_tx = Some(session_tx);
 
         tokio::spawn(async move {
@@ -45,7 +45,7 @@ impl EventSubConnection {
         
         Ok(Self {
             session: session_rx.await.ok(),
-            rx,
+            rx: Some(rx),
         })
     }
 
@@ -78,10 +78,9 @@ impl EventSubConnection {
         if let Some(event) = event {
             match event.subscription {
                 Subscription::ChannelChatMessage => {
-                    log::info!("{:?}", event.event);
-                    let _ = tx.send(event);
+                    // log::info!("{:?}", event.event);
+                    dbg!(tx.send(event).unwrap());
                 },
-                _ => (),
             };
         };
     }

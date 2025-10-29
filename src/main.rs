@@ -71,6 +71,33 @@ async fn main() {
     .map_err(|e| error!("Error: {:?}", e));
 }
 
+async fn handle_twitch_connection(
+    backend_tx: tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
+    mut client: &mut twitch_api::Client,
+    mut close: &mut Option<tokio::sync::oneshot::Sender<()>>, 
+) {
+    let mut rx = client.eventsub.rx.take().unwrap();
+    let mut close = close.take().unwrap();
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                _ = close.closed() => break,
+                Some(recv) = rx.recv() => {
+                    if matches!(recv.subscription, twitch_api::helix::Subscription::ChannelChatMessage) {
+                        let user = recv.event["chatter_user_name"].as_str().unwrap();
+                        let message_body = recv.event["message"]["text"].as_str().unwrap();
+                        let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
+                            ui::LogLevel::INFO,
+                            format!("{} sent: {}", user, message_body)
+                        ));
+                    };
+                },
+            };
+        } 
+    });
+}
+
+
 async fn handle_frontend_to_backend_messages(
     mut backend_rx: tokio::sync::mpsc::Receiver<FrontendToBackendMessage>,
     backend_tx: tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
@@ -83,6 +110,9 @@ async fn handle_frontend_to_backend_messages(
     // as a mut argument;
     
     let mut twitch_handler: Option<twitch_api::Client> = None;
+    let (mut close_tx, mut close_rx) = tokio::sync::oneshot::channel();
+    let mut close_tx = Some(close_tx);
+
 
     while let Some(message) = backend_rx.recv().await {
         match message {
@@ -144,14 +174,14 @@ async fn handle_frontend_to_backend_messages(
                 log::info!("Attempting to create Twitch API connection");
                 let config = backend::config::load_config().chatbot;
                 twitch_handler = twitch_api::Client::new(config).await.ok();
-                // connection_tx.send(());
+                
+                handle_twitch_connection(backend_tx.clone(), &mut twitch_handler.as_mut().unwrap(), &mut close_tx).await;
             }
             FrontendToBackendMessage::DisconnectFromChat(_) => {
                 if let Some(client) = twitch_handler.take() {
                     log::info!("Dropping Twitch client");
-                    drop(client);
+                    close_rx.close();
                 }
-                // drop(connection_tx);
             }
             _ => {
                 println!("Received other message: {:?}", message);
