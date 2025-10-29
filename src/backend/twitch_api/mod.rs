@@ -8,7 +8,7 @@ use crate::ui::ChatbotConfig;
 
 pub struct Client {
     helix: HelixClient,
-    eventsub: EventSubConnection,
+    pub eventsub: EventSubConnection,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -21,20 +21,19 @@ pub struct ChatMessage {
 
 impl Client {
     pub async fn new(config: ChatbotConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let (mut helix, eventsub) = tokio::join!(
-            HelixClient::new(config),
-            EventSubConnection::serve());
-
-        let eventsub = eventsub?;
+        let (mut helix, mut eventsub) = (
+            HelixClient::new(config).await,
+            EventSubConnection::serve().await?
+        );
 
         if helix.config.user_id.is_none() {
             let user_id = helix.request_user_id().await;
             helix.config.user_id = user_id.ok();
         }
 
-        
-        let session_id = eventsub.session.as_ref().unwrap();
-        helix.subscribe(Subscription::ChannelChatMessage, session_id).await?;
+        if let Some(session_id) = eventsub.session.as_ref() {
+            helix.subscribe(Subscription::ChannelChatMessage, session_id).await?;
+        }
 
         Ok(Self {
             helix,

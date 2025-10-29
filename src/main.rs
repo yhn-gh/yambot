@@ -77,6 +77,11 @@ async fn handle_frontend_to_backend_messages(
     stream_handle: rodio::OutputStreamHandle,
 ) {
     let _stream_handle = Arc::new(stream_handle);
+    // Instead of this I should spin up separate thread that deals
+    // with shared data and logging stuff; it should take cloned
+    // sender while this function should have Option<Client> should be
+    // as a mut argument;
+    
     let mut twitch_handler: Option<twitch_api::Client> = None;
 
     while let Some(message) = backend_rx.recv().await {
@@ -138,13 +143,15 @@ async fn handle_frontend_to_backend_messages(
             FrontendToBackendMessage::ConnectToChat(_) => {
                 log::info!("Attempting to create Twitch API connection");
                 let config = backend::config::load_config().chatbot;
-                twitch_handler = twitch_api::Client::new(config).await.ok()
+                twitch_handler = twitch_api::Client::new(config).await.ok();
+                // connection_tx.send(());
             }
             FrontendToBackendMessage::DisconnectFromChat(_) => {
                 if let Some(client) = twitch_handler.take() {
                     log::info!("Dropping Twitch client");
                     drop(client);
                 }
+                // drop(connection_tx);
             }
             _ => {
                 println!("Received other message: {:?}", message);

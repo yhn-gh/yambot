@@ -59,9 +59,6 @@ pub struct Settings {
 impl Chatbot {
     pub fn show_settings(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
-            // TODO make this not suck ass
-            let super::Section::Settings(state) = &mut self.selected_section else {panic!()};
-
             ui.horizontal(|ui| {
                 ui.label("Channel name:");
                 ui.text_edit_singleline(&mut self.config.channel_name);
@@ -95,6 +92,9 @@ impl Chatbot {
                     });
             });
             ui.add_space(10.0);
+            
+            // TODO make this not suck ass
+            let super::Section::Settings(state) = &mut self.selected_section else { unreachable!() };
 
             if ui.add(Verify::new(&state.clicks, &state.verified)).clicked() {
                 // would panic on integer overflow

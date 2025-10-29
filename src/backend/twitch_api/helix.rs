@@ -16,17 +16,10 @@ pub struct HelixClient {
 }
 
 impl HelixClient {
-    // should take ref to chatbot
-    // should be zero copy too in signature of struct
     pub(crate) async fn new(config: ChatbotConfig) -> Self {
         Self {
             client: reqwest::Client::new(),
             config: config,
-            // auth_token: config.auth_token,
-            // client_id: config.client_id,
-            // channel_name: config.channel_name,
-            // user_id: config.user_id,
-            // subscriptions: HashSet::new(),
         }
     }
     pub async fn request_user_id(&self) -> Result<String, Error> {
@@ -42,8 +35,9 @@ impl HelixClient {
             .and_then(|x| x.get_mut("id"))
             .and_then(|x| x.as_str())
             .map(|x| x.into()).ok_or(Error::InvalidData)
+            
     }
-
+    
     pub(super) async fn subscribe(&self, sub: Subscription, session_id: &str) -> reqwest::Result<()> {
         let client = &self.client;
         let map = json!({
@@ -65,7 +59,6 @@ impl HelixClient {
         // should handle Non-authorized, Bad Request case
         Ok(())
     }
-
 }
 
 #[derive(Debug)]
@@ -92,7 +85,6 @@ impl TryFrom<&str> for Subscription {
     }
 }
 
-
 impl Subscription {
     fn as_str(&self) -> &str {
         match &self {
@@ -100,7 +92,8 @@ impl Subscription {
         }
     }
     
-    // returns condition value convention for subscribing
+    // condition value's convention for subscribing per
+    // https://dev.twitch.tv/docs/eventsub/eventsub-reference/#conditions
     async fn condition(&self, client: &HelixClient) -> Value {
         let user_id = &client.config.user_id;
         match self {
