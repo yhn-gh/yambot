@@ -167,6 +167,14 @@ impl eframe::App for Chatbot {
 
         while let Ok(message) = self.frontend_rx.try_recv() {
             match message {
+                BackendToFrontendMessage::CreateLog(log_level, message) => {
+                    let message = LogMessage {
+                        message,
+                        timestamp: chrono::Local::now().to_string(),
+                        log_level,
+                    };
+                    self.log_messages.push(message);
+                }
                 BackendToFrontendMessage::ConnectionSuccess(response) => {
                     self.labels.bot_status = response;
                     self.labels.connect_button = "Disconnect".to_string();
