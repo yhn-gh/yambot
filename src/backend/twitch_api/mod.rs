@@ -2,6 +2,7 @@ pub mod helix;
 pub mod eventsub;
 
 pub use helix::{HelixClient, Subscription};
+pub use eventsub::Event;
 use eventsub::EventSubConnection;
 use serde::{Serialize, Deserialize};
 use crate::ui::ChatbotConfig;
@@ -39,5 +40,18 @@ impl Client {
             helix,
             eventsub,
         })
+    }
+}
+
+#[derive(Debug)]
+pub enum Error {
+    InvalidData,
+    ReqwestError(reqwest::Error),
+    TungsteniteError(tungstenite::Error),
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(error: reqwest::Error) -> Self {
+        Self::ReqwestError(error)
     }
 }

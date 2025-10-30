@@ -1,6 +1,6 @@
 use egui::{ CentralPanel, Color32, TopBottomPanel };
 use serde::{ Deserialize, Serialize };
-use crate::backend::twitch_api::helix;
+use crate::backend::twitch_api;
 
 pub mod home;
 pub mod settings;
@@ -35,7 +35,7 @@ pub enum BackendToFrontendMessage {
     ChatMessageReceived(String),
     CreateLog(LogLevel, String),
     // TODO: change to Result<(), helix::Error>
-    GetUserId(Option<helix::Error>),
+    GetUserId(Option<twitch_api::Error>),
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
@@ -190,10 +190,11 @@ impl eframe::App for Chatbot {
                             
                         if let Some(err) = id {
                             state.verified = false;
-                            use helix::Error as Error;
+                            use twitch_api::Error as Error;
                             match err {
                                 Error::InvalidData => state.label = Some(settings::Label::Invalid),
                                 Error::ReqwestError(_) => state.label = Some(settings::Label::Unreached),
+                                Error::TungsteniteError(_) => state.label = Some(settings::Label::Unreached),
                             };
                         } else {
                             state.verified = true;

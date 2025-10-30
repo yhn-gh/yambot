@@ -22,8 +22,9 @@ impl HelixClient {
             config: config,
         }
     }
-    pub async fn request_user_id(&self) -> Result<String, Error> {
-        let mut body: Map<String, Value> = reqwest::Client::new()
+    
+    pub async fn request_user_id(&self) -> Result<String, super::Error> {
+        let mut body: Map<String, Value> = self.client
             .get(format!("{HELIX_URI}/users?login={}",&self.config.channel_name))
             .bearer_auth(&self.config.auth_token)
             .header("Client-Id", &self.config.client_id)
@@ -34,42 +35,30 @@ impl HelixClient {
             .and_then(|x| x.get_mut(0)) // data returns 0-len array
             .and_then(|x| x.get_mut("id"))
             .and_then(|x| x.as_str())
-            .map(|x| x.into()).ok_or(Error::InvalidData)
+            .map(|x| x.into())
+            .ok_or(super::Error::InvalidData)
             
     }
     
     pub(super) async fn subscribe(&self, sub: Subscription, session_id: &str) -> reqwest::Result<()> {
-        let client = &self.client;
         let map = json!({
             "type": sub.as_str(),
             "version": "1",
-            "condition": sub.condition(&self).await,
+            "condition": sub.condition(self).await,
             "transport": {
                 "method": "websocket",
                 "session_id": session_id
             }
         });
         
-        let post = client.post(format!("{HELIX_URI}/eventsub/subscriptions"))
+        self.client.post(format!("{HELIX_URI}/eventsub/subscriptions"))
             .bearer_auth(&self.config.auth_token)
             .header("Client-Id", &self.config.client_id)
-            .json(&map);
-        
-        let _res = post.send().await?.text().await?;
-        // should handle Non-authorized, Bad Request case
+            .json(&map)
+            .send()
+            .await?;
+            
         Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub enum Error {
-    InvalidData,
-    ReqwestError(reqwest::Error),
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(error: reqwest::Error) -> Self {
-        Self::ReqwestError(error)
     }
 }
 
