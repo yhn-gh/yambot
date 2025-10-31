@@ -1,0 +1,24 @@
+[chatbot]
+channel_name = ""
+auth_token = ""
+refresh_token = ""
+sound_format = "Wav"
+welcome_message = ""
+
+[sfx]
+volume = 0.5
+enabled = true
+
+[sfx.permited_roles]
+subs = true
+vips = false
+mods = true
+
+[tts]
+volume = 1.0
+enabled = true
+
+[tts.permited_roles]
+subs = true
+vips = false
+mods = true

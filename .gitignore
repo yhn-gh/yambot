@@ -1,0 +1,8 @@
+/target
+/.direnv
+.envrc
+assets/soundlist.json
+assets/sounds
+config.toml
+commands.toml
+.env

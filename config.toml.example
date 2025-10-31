@@ -1,0 +1,24 @@
+[chatbot]
+channel_name = "your_channel_name"
+auth_token = "your_oauth_token"
+refresh_token = "your_refresh_token"
+sound_format = "Wav"  # Options: "Wav", "Mp3", "Opus"
+welcome_message = ""  # Optional: Message to send when bot connects
+
+[sfx]
+volume = 1.0
+enabled = true
+
+[sfx.permited_roles]
+subs = true
+vips = false
+mods = true
+
+[tts]
+volume = 1.0
+enabled = true
+
+[tts.permited_roles]
+subs = true
+vips = false
+mods = true

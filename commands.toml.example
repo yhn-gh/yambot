@@ -1,0 +1,31 @@
+# Example commands configuration
+# Copy this file to commands.toml and customize it
+# You can also manage commands through the UI (COMMANDS tab)
+
+# The commands structure is auto-generated when you add commands through the UI
+# Example structure:
+
+# [commands.hello]
+# trigger = "hello"
+# description = "Greet the user"
+# permission = "Everyone"  # Options: Everyone, Subscriber, Vip, Moderator, Broadcaster
+# cooldown = 5  # Cooldown in seconds (0 = no cooldown)
+# enabled = true
+#
+# [commands.hello.action]
+# Reply = { message = "Hello {user}! Welcome to the stream!" }
+
+# Available placeholders:
+# {user} - Username of the person who triggered the command
+# {userid} - User ID
+# {args} - Arguments passed to the command
+# {command} - The command trigger
+
+# Available action types:
+# - Reply: Reply to the user's message
+# - SendMessage: Send a message to chat
+# - PlaySound: Play a sound file (from assets/sounds/)
+# - TextToSpeech: Use TTS to read a message
+# - Multiple: Execute multiple actions in sequence
+
+# Note: This file will be automatically updated when you manage commands through the UI
