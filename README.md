@@ -8,7 +8,7 @@ todo
 
 ## Configuration
 
-todo
+Update `\src\backend\twitch\auth.rs` and set client_id and client_secret in order to make bot connect to twitch chat.
 
 ## Usage
 
@@ -23,6 +23,8 @@ In order for bot to handle everything you need scopes:
 - user:write:chat
 
 You can use to https://yamii.bieda.it/ to generate access token.
+
+*Building app yourself requires you to generate access token with client_id set in auth.rs*
 
 ## Contributing
 
