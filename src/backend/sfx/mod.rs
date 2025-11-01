@@ -10,7 +10,7 @@ use std::{
     sync::{LazyLock, Mutex},
 };
 
-use sounds::Soundlist;
+pub use sounds::Soundlist;
 use watcher::Watcher;
 
 // MAYBE ADD AN OPTION TO CHANGE THE DIRECTORY TO A DIFFERENT ONE IN CONFIG
@@ -26,7 +26,6 @@ pub enum Format {
 }
 
 // public interface for all things sounds/sfx-related
-#[non_exhaustive]
 pub struct SoundsManager {
     #[allow(dead_code)] // Reserved for future sound directory management
     sounds_path: PathBuf,

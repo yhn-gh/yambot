@@ -1,5 +1,4 @@
 use crate::backend::commands::{CommandExecutor, CommandParser, CommandRegistry, CommandResult};
-use crate::backend::sfx::SoundsManager;
 use crate::backend::twitch::{
     ChatMessageEvent, TwitchClient, TwitchClientEvent, TwitchConfig, TwitchEvent,
 };
@@ -17,6 +16,24 @@ use ui::{BackendToFrontendMessage, FrontendToBackendMessage};
 pub mod backend;
 pub mod ui;
 use log::{error, info};
+
+// Sound playback request with file name and volume
+#[derive(Debug, Clone)]
+struct SoundPlaybackRequest {
+    sound_file: String,
+    volume: f32,
+}
+
+// Channel for sending sound playback requests
+// Using std::sync::mpsc::Sender wrapped for compatibility with async code
+#[derive(Clone)]
+struct SoundPlaybackSender(std::sync::mpsc::Sender<SoundPlaybackRequest>);
+
+impl SoundPlaybackSender {
+    fn send(&self, sound: String, volume: f32) -> Result<(), std::sync::mpsc::SendError<SoundPlaybackRequest>> {
+        self.0.send(SoundPlaybackRequest { sound_file: sound, volume })
+    }
+}
 
 const WINDOW_WIDTH: f32 = 800.0;
 const WINDOW_HEIGHT: f32 = 600.0;
@@ -64,18 +81,35 @@ async fn main() {
     let config = backend::config::load_config();
     let command_registry = backend::config::load_commands();
 
+    // Initialize SoundsManager to start file watching
+    let _sounds_manager = backend::sfx::SoundsManager::new()
+        .await
+        .expect("Failed to initialize SoundsManager");
+
     // Wrap command registry in Arc<RwLock> for sharing across tasks
     let shared_registry = Arc::new(RwLock::new(command_registry));
 
-    let sounds_manager = SoundsManager::new()
-        .await
-        .expect("Sound manager initialization");
+    // Create audio playback channel and spawn dedicated audio task in a blocking thread
+    // This solves the OutputStream Send issue on macOS by creating OutputStream in a dedicated thread
+    let (audio_tx, audio_rx) = std::sync::mpsc::channel::<SoundPlaybackRequest>();
+    let audio_tx = SoundPlaybackSender(audio_tx);
+    std::thread::spawn(move || {
+        // Create the OutputStream inside the thread to avoid Send issues on macOS
+        let stream = rodio::OutputStreamBuilder::open_default_stream()
+            .expect("Failed to open default audio stream");
+        audio_playback_task(audio_rx, stream);
+    });
 
-    let stream = sounds_manager.get_stream();
     let registry_clone = shared_registry.clone();
+    let audio_tx_clone = audio_tx.clone();
     tokio::spawn(async move {
-        handle_frontend_to_backend_messages(backend_rx, backend_tx.clone(), stream, registry_clone)
-            .await;
+        handle_frontend_to_backend_messages(
+            backend_rx,
+            backend_tx.clone(),
+            audio_tx_clone,
+            registry_clone,
+        )
+        .await;
     });
     info!("Starting chatbot");
 
@@ -111,6 +145,7 @@ async fn main() {
 async fn handle_twitch_messages(
     config: TwitchConfig,
     backend_tx: tokio::sync::mpsc::Sender<ui::BackendToFrontendMessage>,
+    audio_tx: SoundPlaybackSender,
     command_registry: Arc<RwLock<CommandRegistry>>,
     welcome_message: Option<String>,
 ) {
@@ -226,13 +261,7 @@ async fn handle_twitch_messages(
                         match result {
                             CommandResult::Success(Some(action)) => {
                                 // Parse the action and handle it
-                                if let Some(play_sound) = action.strip_prefix("play_sound:") {
-                                    let _ = backend_tx
-                                        .send(BackendToFrontendMessage::PlaySound(
-                                            play_sound.to_string(),
-                                        ))
-                                        .await;
-                                } else if let Some(send_msg) = action.strip_prefix("send:") {
+                                if let Some(send_msg) = action.strip_prefix("send:") {
                                     if let Err(e) = client.send_message(send_msg).await {
                                         let _ = backend_tx
                                             .send(BackendToFrontendMessage::CreateLog(
@@ -277,7 +306,26 @@ async fn handle_twitch_messages(
                                     .await;
                             }
                             CommandResult::NotFound => {
-                                // Command not found, ignore silently
+                                // Check if there's a sound file with this name
+                                let sound_format = backend::sfx::Soundlist::get_format();
+                                let sound_path = format!("./assets/sounds/{}.{}", context.command_name, sound_format);
+
+                                if std::path::Path::new(&sound_path).exists() {
+                                    // Check if user has permission to play sounds
+                                    let config = backend::config::load_config();
+                                    let has_permission = context.badges().iter().any(|badge| {
+                                        (badge.set_id == "subscriber" || badge.set_id == "founder") && config.sfx.permited_roles.subs
+                                            || badge.set_id == "vip" && config.sfx.permited_roles.vips
+                                            || badge.set_id == "moderator" && config.sfx.permited_roles.mods
+                                            || badge.set_id == "broadcaster"
+                                    });
+
+                                    if has_permission && config.sfx.enabled {
+                                        // Play the sound with volume from sfx config
+                                        let sound_file = format!("{}.{}", context.command_name, sound_format);
+                                        let _ = audio_tx.send(sound_file, config.sfx.volume as f32);
+                                    }
+                                }
                             }
                             CommandResult::PermissionDenied => {
                                 let _ = backend_tx
@@ -426,11 +474,11 @@ async fn handle_twitch_messages(
 async fn handle_frontend_to_backend_messages(
     mut backend_rx: tokio::sync::mpsc::Receiver<FrontendToBackendMessage>,
     backend_tx: tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
-    stream: OutputStream,
+    audio_tx: SoundPlaybackSender,
     command_registry: Arc<RwLock<CommandRegistry>>,
 ) {
-    let stream = Arc::new(stream);
-
+    // Store the handle to the twitch message handler task so we can abort it on disconnect
+    let mut twitch_task_handle: Option<tokio::task::JoinHandle<()>> = None;
     while let Some(message) = backend_rx.recv().await {
         match message {
             FrontendToBackendMessage::UpdateTTSConfig(config) => {
@@ -476,6 +524,15 @@ async fn handle_frontend_to_backend_messages(
                 ));
             }
             FrontendToBackendMessage::ConnectToChat(_channel_name) => {
+                // Abort any existing connection first
+                if let Some(handle) = twitch_task_handle.take() {
+                    handle.abort();
+                    let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
+                        ui::LogLevel::INFO,
+                        "Disconnecting previous session...".to_string(),
+                    ));
+                }
+
                 // Load config to get auth_token and client_id
                 let config = backend::config::load_config();
                 let twitch_config = TwitchConfig {
@@ -492,27 +549,26 @@ async fn handle_frontend_to_backend_messages(
                 };
 
                 let backend_tx_clone = backend_tx.clone();
+                let audio_tx_clone = audio_tx.clone();
                 let registry_clone = command_registry.clone();
-                tokio::spawn(async move {
+
+                // Spawn the twitch handler task and store the handle
+                let handle = tokio::spawn(async move {
                     handle_twitch_messages(
                         twitch_config,
                         backend_tx_clone,
+                        audio_tx_clone,
                         registry_clone,
                         welcome_message,
                     )
                     .await;
                 });
+                twitch_task_handle = Some(handle);
 
                 let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
                     ui::LogLevel::INFO,
                     "Connecting to Twitch...".to_string(),
                 ));
-            }
-            FrontendToBackendMessage::PlaySound(sound_file) => {
-                let stream_clone = stream.clone();
-                tokio::spawn(async move {
-                    play_sound(sound_file, stream_clone).await;
-                });
             }
             FrontendToBackendMessage::AddCommand(command) => {
                 {
@@ -565,6 +621,21 @@ async fn handle_frontend_to_backend_messages(
                     ));
                 }
             }
+            FrontendToBackendMessage::DisconnectFromChat(_channel_name) => {
+                // Abort the twitch message handler task if it's running
+                if let Some(handle) = twitch_task_handle.take() {
+                    handle.abort();
+                    let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
+                        ui::LogLevel::INFO,
+                        "Disconnected from Twitch".to_string(),
+                    ));
+                } else {
+                    let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
+                        ui::LogLevel::WARN,
+                        "Not connected to Twitch".to_string(),
+                    ));
+                }
+            }
             _ => {
                 println!("Received other message: {:?}", message);
             }
@@ -572,15 +643,22 @@ async fn handle_frontend_to_backend_messages(
     }
 }
 
-async fn play_sound(sound_file: String, stream: Arc<OutputStream>) {
-    let sound_path = "./assets/sounds/".to_string() + &sound_file;
-    if let Ok(file) = File::open(Path::new(&sound_path)) {
-        let source = Decoder::new(BufReader::new(file)).unwrap();
-        let sink = Sink::connect_new(&stream.mixer());
-        sink.set_volume(0.5);
-        sink.append(source);
-        sink.detach();
-    } else {
-        println!("Could not open sound file: {}", sound_path);
+// Dedicated audio playback task that owns the OutputStream
+// This solves the Send issue on macOS by keeping OutputStream in a single blocking thread
+fn audio_playback_task(rx: std::sync::mpsc::Receiver<SoundPlaybackRequest>, stream: OutputStream) {
+    while let Ok(request) = rx.recv() {
+        let sound_path = "./assets/sounds/".to_string() + &request.sound_file;
+        if let Ok(file) = File::open(Path::new(&sound_path)) {
+            if let Ok(source) = Decoder::new(BufReader::new(file)) {
+                let sink = Sink::connect_new(stream.mixer());
+                sink.set_volume(request.volume);
+                sink.append(source);
+                sink.detach();
+            } else {
+                error!("Could not decode sound file: {}", sound_path);
+            }
+        } else {
+            error!("Could not open sound file: {}", sound_path);
+        }
     }
 }

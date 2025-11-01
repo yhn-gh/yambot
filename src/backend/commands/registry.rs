@@ -48,8 +48,6 @@ impl CommandPermission {
 /// Action to perform when a command is executed
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CommandAction {
-    /// Play a sound effect
-    PlaySound { sound_name: String },
     /// Use text-to-speech
     TextToSpeech { message: String },
     /// Send a message to chat

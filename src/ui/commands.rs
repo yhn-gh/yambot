@@ -108,7 +108,6 @@ impl Chatbot {
 
     fn format_action(action: &CommandAction) -> String {
         match action {
-            CommandAction::PlaySound { sound_name } => format!("Play Sound: {}", sound_name),
             CommandAction::TextToSpeech { message } => format!("TTS: {}", message),
             CommandAction::SendMessage { message } => format!("Send: {}", message),
             CommandAction::Reply { message } => format!("Reply: {}", message),
@@ -140,18 +139,7 @@ impl Chatbot {
         )
         .with_cooldown(5);
 
-        // Example 3: Sound command
-        let hype_cmd = Command::new(
-            "hype".to_string(),
-            "Play hype sound".to_string(),
-            CommandPermission::Subscriber,
-            CommandAction::PlaySound {
-                sound_name: "hype.wav".to_string(),
-            },
-        )
-        .with_cooldown(10);
-
-        // Example 4: Mod-only command
+        // Example 3: Mod-only command
         let shoutout_cmd = Command::new(
             "so".to_string(),
             "Shoutout another streamer".to_string(),
@@ -170,15 +158,11 @@ impl Chatbot {
             .try_send(FrontendToBackendMessage::AddCommand(lurk_cmd.clone()));
         let _ = self
             .frontend_tx
-            .try_send(FrontendToBackendMessage::AddCommand(hype_cmd.clone()));
-        let _ = self
-            .frontend_tx
             .try_send(FrontendToBackendMessage::AddCommand(shoutout_cmd.clone()));
 
         // Update local state
         self.commands.push(hello_cmd);
         self.commands.push(lurk_cmd);
-        self.commands.push(hype_cmd);
         self.commands.push(shoutout_cmd);
     }
 
@@ -224,8 +208,7 @@ impl Chatbot {
             let (action_type, action_param) = match &command.action {
                 CommandAction::Reply { message } => (0, message.clone()),
                 CommandAction::SendMessage { message } => (1, message.clone()),
-                CommandAction::PlaySound { sound_name } => (2, sound_name.clone()),
-                CommandAction::TextToSpeech { message } => (3, message.clone()),
+                CommandAction::TextToSpeech { message } => (2, message.clone()),
                 CommandAction::Multiple { .. } => (0, String::new()), // Default to Reply for complex actions
             };
 
@@ -297,8 +280,7 @@ impl Chatbot {
                         .show_ui(ui, |ui| {
                             ui.selectable_value(&mut editing.action_type, 0, "Reply");
                             ui.selectable_value(&mut editing.action_type, 1, "Send Message");
-                            ui.selectable_value(&mut editing.action_type, 2, "Play Sound");
-                            ui.selectable_value(&mut editing.action_type, 3, "Text-to-Speech");
+                            ui.selectable_value(&mut editing.action_type, 2, "Text-to-Speech");
                         });
                 });
 
@@ -344,8 +326,7 @@ impl Chatbot {
         match idx {
             0 => "Reply",
             1 => "Send Message",
-            2 => "Play Sound",
-            3 => "Text-to-Speech",
+            2 => "Text-to-Speech",
             _ => "Unknown",
         }
     }
@@ -354,8 +335,7 @@ impl Chatbot {
         match idx {
             0 => "Reply message:",
             1 => "Message:",
-            2 => "Sound file name:",
-            3 => "TTS message:",
+            2 => "TTS message:",
             _ => "Parameter:",
         }
     }
@@ -383,10 +363,7 @@ impl Chatbot {
                 1 => CommandAction::SendMessage {
                     message: editing.action_param,
                 },
-                2 => CommandAction::PlaySound {
-                    sound_name: editing.action_param,
-                },
-                3 => CommandAction::TextToSpeech {
+                2 => CommandAction::TextToSpeech {
                     message: editing.action_param,
                 },
                 _ => CommandAction::Reply {

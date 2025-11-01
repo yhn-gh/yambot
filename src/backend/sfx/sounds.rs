@@ -39,7 +39,7 @@ impl Soundlist {
         }
     }
 
-    pub fn get_format<'a>() -> &'a str {
+    pub fn get_format() -> &'static str {
         let sound_format: &str = match config::load_config().chatbot.sound_format {
             Format::Wav => "wav",
             Format::Opus => "opus",
@@ -78,5 +78,15 @@ impl Soundlist {
         let sounds = serde_json::to_vec(self)?;
         tokio::fs::write(SOUNDLIST_PATH, &sounds).await?;
         Ok(())
+    }
+
+    /// Save the current FILES HashSet to soundlist.json
+    pub async fn save_from_files() -> Result<(), std::io::Error> {
+        let sounds = {
+            let lock = FILES.lock().unwrap();
+            lock.clone()
+        };
+        let soundlist = Soundlist { sounds };
+        soundlist.save().await
     }
 }

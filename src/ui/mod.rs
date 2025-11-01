@@ -23,7 +23,6 @@ pub enum FrontendToBackendMessage {
     UpdateTTSConfig(Config),
     ConnectToChat(String),
     DisconnectFromChat(String),
-    PlaySound(String),
     AddCommand(crate::backend::commands::Command),
     RemoveCommand(String),
     UpdateCommand(crate::backend::commands::Command),
@@ -40,14 +39,13 @@ pub enum BackendToFrontendMessage {
     CreateLog(LogLevel, String),
     CommandExecuted(String, String), // (command_name, result)
     CommandsUpdated,
-    PlaySound(String), // Sound file to play (forwarded from command execution)
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     // https://github.com/emilk/egui/discussions/4670
-    volume: f64,
-    enabled: bool,
-    permited_roles: PermitedRoles,
+    pub volume: f64,
+    pub enabled: bool,
+    pub permited_roles: PermitedRoles,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -274,12 +272,6 @@ impl eframe::App for Chatbot {
                 }
                 BackendToFrontendMessage::CommandsUpdated => {
                     // Command list will be updated on the backend
-                }
-                BackendToFrontendMessage::PlaySound(sound_file) => {
-                    // Forward to backend to play the sound
-                    let _ = self
-                        .frontend_tx
-                        .try_send(FrontendToBackendMessage::PlaySound(sound_file));
                 }
                 _ => {
                     println!("Received message");

@@ -77,31 +77,46 @@ impl Watcher {
                     log::error!("Watcher channel error: {}", e);
                     break;
                 };
-                let mut lock = FILES.lock().unwrap();
-                let events = rx.borrow();
-                for event in events.iter() {
-                    let get_filename = || -> Option<&str> {
-                        match event {
-                            SoundEvent::Add(file) | SoundEvent::Remove(file)
-                                if Soundlist::is_soundfile(&file).is_some() =>
-                            {
-                                file.file_stem()?.to_str()
-                            }
-                            _ => None,
-                        }
-                    };
 
-                    if let Some(filename) = get_filename() {
-                        match event {
-                            SoundEvent::Add(file) => {
-                                log::info!("Added sound file: {}", file.display());
-                                lock.insert(String::from(filename));
+                // Process events in a scoped block to ensure locks are dropped
+                let has_changes = {
+                    let mut lock = FILES.lock().unwrap();
+                    let events = rx.borrow();
+                    let mut changed = false;
+
+                    for event in events.iter() {
+                        let get_filename = || -> Option<&str> {
+                            match event {
+                                SoundEvent::Add(file) | SoundEvent::Remove(file)
+                                    if Soundlist::is_soundfile(&file).is_some() =>
+                                {
+                                    file.file_stem()?.to_str()
+                                }
+                                _ => None,
                             }
-                            SoundEvent::Remove(file) => {
-                                log::info!("Removing sound file: {}", file.display());
-                                lock.remove(filename);
+                        };
+
+                        if let Some(filename) = get_filename() {
+                            changed = true;
+                            match event {
+                                SoundEvent::Add(file) => {
+                                    log::info!("Added sound file: {}", file.display());
+                                    lock.insert(String::from(filename));
+                                }
+                                SoundEvent::Remove(file) => {
+                                    log::info!("Removing sound file: {}", file.display());
+                                    lock.remove(filename);
+                                }
                             }
                         }
+                    }
+                    changed
+                }; // lock and events are dropped here
+
+                // Save the updated soundlist to file if there were changes
+                if has_changes {
+                    if let Err(e) = Soundlist::save_from_files().await {
+                        log::error!("Failed to save soundlist: {}", e);
                     }
                 }
             }

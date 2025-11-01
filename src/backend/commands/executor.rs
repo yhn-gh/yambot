@@ -76,10 +76,6 @@ impl CommandExecutor {
     /// Execute a command action
     fn execute_action(&self, action: &CommandAction, context: &CommandContext) -> CommandResult {
         match action {
-            CommandAction::PlaySound { sound_name } => {
-                // This will be handled by the backend message system
-                CommandResult::Success(Some(format!("play_sound:{}", sound_name)))
-            }
             CommandAction::TextToSpeech { message } => {
                 let processed = context.replace_placeholders(message);
                 CommandResult::Success(Some(format!("tts:{}", processed)))
