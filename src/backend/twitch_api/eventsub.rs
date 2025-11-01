@@ -5,11 +5,7 @@ use tokio_stream::{Stream, StreamExt};
 use tungstenite::client::IntoClientRequest;
 use super::helix::Subscription;
 
-pub struct EventSubConnection {
-    // TODO should be just String
-    pub session: Option<String>,
-    pub rx: mpsc::UnboundedReceiver<Event>,
-}
+pub struct EventSubConnection;
 
 #[derive(Debug)]
 pub struct Event {
@@ -25,10 +21,9 @@ enum EventSubMessage {
 }
 
 impl EventSubConnection {
-    pub(super) async fn serve() -> tungstenite::Result<Self> {
+    pub(super) async fn serve() -> tungstenite::Result<(String, impl Stream<Item = Event>)> {
         let request = "wss://eventsub.wss.twitch.tv/ws".into_client_request()?;
         let (mut ws_stream, _) = tokio_tungstenite::connect_async(request).await?;
-        let (tx, rx) = mpsc::unbounded_channel();
 
         let mut stream = Self::wrap_stream(ws_stream);
         
@@ -37,29 +32,16 @@ impl EventSubConnection {
                 EventSubMessage::SessionId(id) => Some(id),
                 _ => None,
             }
-        }).next().await;
-       
+        }).next().await.unwrap();
 
-        tokio::spawn(async move {
-                while let Some(msg) = stream.next().await {
-                    match msg {
-                        
-                        EventSubMessage::Event(event) => {
-                            let _ = event.map(|x| tx.send(x));
-                        },
-                        EventSubMessage::Close(reason) => {
-                            log::info!("Closing Websocket connection; Reason: {:?}", reason);
-                            break;
-                        },
-                        EventSubMessage::SessionId(_) => (),
-                    };
-            };
+        let stream = stream.filter_map(|x| {
+            match x {
+                EventSubMessage::Event(event) => event,
+                _ => None,
+            }
         });
-        
-        Ok(Self {
-            session,
-            rx,
-        })
+
+        Ok((session, stream))
     }
 
     fn wrap_stream<S>(stream: S) -> impl Stream<Item = EventSubMessage> where
@@ -67,17 +49,17 @@ impl EventSubConnection {
     {
         stream.filter_map(|x| {
             match x.ok()? {
-                Message::Text(b) => Self::handle_message_bytes(b.as_bytes()).ok(),
-                Message::Close(c) => {
-                    c.map(|x| EventSubMessage::Close(x.reason))
-                },
+                Message::Text(bytes) => EventSubMessage::from_message_bytes(&bytes).ok(),
+                Message::Close(close) => close.map(|x| EventSubMessage::Close(x.reason)),
                 _ => None,
             }
         })
     }
+}
 
-    fn handle_message_bytes(bytes: &[u8]) -> serde_json::Result<EventSubMessage> {
-        let mut map: Map<String, Value> = serde_json::from_slice(bytes)?;
+impl EventSubMessage {
+    fn from_message_bytes(bytes: &str) -> serde_json::Result<EventSubMessage> {
+        let mut map: Map<String, Value> = serde_json::from_str(bytes)?;
         let metadata: Value = map["metadata"].take();
         let mut payload: Value = map["payload"].take();
 
@@ -101,10 +83,9 @@ impl Event {
         let subscription = msg["subscription"]["type"].take();
         let subscription = subscription.as_str()?;
         let event =  msg["event"].take();
-        let notification = Self {
+        Some(Self {
             subscription: subscription.try_into().ok()?,
             event,
-        };
-        Some(notification)
+        })
     }
 }

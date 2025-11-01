@@ -6,11 +6,16 @@ pub use eventsub::Event;
 use eventsub::EventSubConnection;
 use serde::{Serialize, Deserialize};
 use crate::ui::ChatbotConfig;
+use tokio::sync::mpsc;
+use tokio_stream::StreamExt;
 
 pub struct Client {
     helix: HelixClient,
-    pub eventsub: EventSubConnection,
+    session: String,
+    tx: mpsc::UnboundedSender<Event>,
+    pub rx: Option<mpsc::UnboundedReceiver<Event>>,
 }
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -22,23 +27,27 @@ pub struct ChatMessage {
 
 impl Client {
     pub async fn new(config: ChatbotConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        let (mut helix, mut eventsub) = (
-            HelixClient::new(config).await,
-            EventSubConnection::serve().await?
-        );
+        let mut helix = HelixClient::new(config).await;
+        let (session, mut stream) = EventSubConnection::serve().await?;
 
-        if helix.config.user_id.is_none() {
-            let user_id = helix.request_user_id().await;
-            helix.config.user_id = user_id.ok();
-        }
+        helix.subscribe(Subscription::ChannelChatMessage, &session).await?;
 
-        if let Some(session_id) = eventsub.session.as_ref() {
-            helix.subscribe(Subscription::ChannelChatMessage, session_id).await?;
-        }
+        let (tx, rx) = mpsc::unbounded_channel();
+        let weak_tx = tx.clone().downgrade();
+        tokio::spawn(async move {
+            while let Some(item) = stream.next().await {
+                match weak_tx.upgrade() {
+                    Some(tx) => tx.send(item),
+                    None => break,
+                };
+            };
+        });
 
         Ok(Self {
             helix,
-            eventsub,
+            session,
+            tx,
+            rx: Some(rx),
         })
     }
 }
