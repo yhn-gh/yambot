@@ -27,18 +27,30 @@ pub enum FrontendToBackendMessage {
     RemoveCommand(String),
     UpdateCommand(crate::backend::commands::Command),
     ToggleCommand(String, bool),
+    GetTTSQueue,
+    SkipTTSMessage(String), // Skip by message ID
+    SkipCurrentTTS,
+}
+
+#[derive(Debug, Clone)]
+pub struct TTSQueueItemUI {
+    pub id: String,
+    pub username: String,
+    pub text: String,
+    pub language: String,
 }
 
 #[derive(Debug)]
 pub enum BackendToFrontendMessage {
     ConnectionSuccess(String),
     ConnectionFailure(String),
-    TTSLangListUpdated,
+    TTSLangListUpdated(Vec<crate::backend::tts::Language>),
     SFXListUpdated,
     ChatMessageReceived(String),
     CreateLog(LogLevel, String),
     CommandExecuted(String, String), // (command_name, result)
     CommandsUpdated,
+    TTSQueueUpdated(Vec<TTSQueueItemUI>),
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
@@ -100,6 +112,8 @@ pub struct Chatbot {
     log_messages: Vec<LogMessage>,
     sfx_config: Config,
     tts_config: Config,
+    tts_languages: Vec<crate::backend::tts::Language>,
+    tts_queue: Vec<TTSQueueItemUI>,
     commands: Vec<crate::backend::commands::Command>,
     editing_command: Option<EditingCommand>,
 }
@@ -121,6 +135,7 @@ impl Chatbot {
         frontend_rx: tokio::sync::mpsc::Receiver<BackendToFrontendMessage>,
         sfx_config: Config,
         tts_config: Config,
+        tts_languages: Vec<crate::backend::tts::Language>,
         commands: Vec<crate::backend::commands::Command>,
     ) -> Self {
         Self {
@@ -135,6 +150,8 @@ impl Chatbot {
             log_messages: Vec::new(),
             sfx_config,
             tts_config,
+            tts_languages,
+            tts_queue: Vec::new(),
             commands,
             editing_command: None,
         }
@@ -273,8 +290,19 @@ impl eframe::App for Chatbot {
                 BackendToFrontendMessage::CommandsUpdated => {
                     // Command list will be updated on the backend
                 }
-                _ => {
-                    println!("Received message");
+                BackendToFrontendMessage::TTSLangListUpdated(updated_langs) => {
+                    // Update TTS languages with the new list from backend
+                    self.tts_languages = updated_langs;
+                }
+                BackendToFrontendMessage::TTSQueueUpdated(queue) => {
+                    self.tts_queue = queue;
+                }
+                BackendToFrontendMessage::SFXListUpdated => {
+                    // Sound list has been updated by the file watcher
+                    // The UI will automatically reflect changes since it reads from FILES every frame
+                }
+                BackendToFrontendMessage::ChatMessageReceived(_) => {
+                    // Chat message received
                 }
             }
         }

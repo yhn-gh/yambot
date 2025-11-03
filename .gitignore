@@ -2,7 +2,7 @@
 /.direnv
 .envrc
 assets/soundlist.json
-assets/sounds
+assets/sounds/*
 config.toml
 commands.toml
 .env

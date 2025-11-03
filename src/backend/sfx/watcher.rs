@@ -39,23 +39,46 @@ impl Watcher {
         let handler = RecommendedWatcher::new(
             move |res: notify::Result<notify::Event>| {
                 let Ok(mut event) = res else {
-                    return log::error!("Watcher Error: {:?}", res);
+                    log::error!("Watcher Error: {:?}", res);
+                    return;
                 };
 
                 // pop removes first parent
                 let file = event.paths.pop().expect("No Such file exists");
 
+                log::debug!("File watcher event: {:?} for file: {}", event.kind, file.display());
+
+                // Check if file exists to determine if it's a creation or deletion
+                let file_exists = file.exists();
+
                 match event.kind {
                     EventKind::Create(_) | EventKind::Modify(ModifyKind::Name(RenameMode::To)) => {
+                        log::info!("Detected sound file creation: {}", file.display());
                         let event = SoundEvent::Add(file);
                         out_tx.send(event).unwrap();
                     }
                     EventKind::Remove(_)
                     | EventKind::Modify(ModifyKind::Name(RenameMode::From)) => {
+                        log::info!("Detected sound file removal: {}", file.display());
                         let event = SoundEvent::Remove(file);
                         out_tx.send(event).unwrap();
                     }
-                    _ => (),
+                    EventKind::Modify(ModifyKind::Name(_)) => {
+                        // On macOS, file deletions can show up as Modify(Name(Any))
+                        // Check if the file still exists to determine if it was deleted
+                        if file_exists {
+                            log::info!("Detected sound file creation (via name modify): {}", file.display());
+                            let event = SoundEvent::Add(file);
+                            out_tx.send(event).unwrap();
+                        } else {
+                            log::info!("Detected sound file removal (via name modify): {}", file.display());
+                            let event = SoundEvent::Remove(file);
+                            out_tx.send(event).unwrap();
+                        }
+                    }
+                    _ => {
+                        log::debug!("Ignoring event kind: {:?}", event.kind);
+                    }
                 }
             },
             notify::Config::default(),
@@ -69,9 +92,13 @@ impl Watcher {
         Self { in_tx, events }
     }
 
-    pub fn push_files(&mut self) -> Result<(), std::io::Error> {
+    pub fn push_files(
+        &mut self,
+        backend_tx: mpsc::Sender<crate::ui::BackendToFrontendMessage>,
+    ) -> Result<(), std::io::Error> {
         let mut rx = self.events.clone();
         tokio::spawn(async move {
+            log::info!("Sound file watcher task started");
             loop {
                 if let Err(e) = rx.changed().await {
                     log::error!("Watcher channel error: {}", e);
@@ -83,6 +110,8 @@ impl Watcher {
                     let mut lock = FILES.lock().unwrap();
                     let events = rx.borrow();
                     let mut changed = false;
+
+                    log::debug!("Processing {} sound file events", events.len());
 
                     for event in events.iter() {
                         let get_filename = || -> Option<&str> {
@@ -99,24 +128,32 @@ impl Watcher {
                         if let Some(filename) = get_filename() {
                             changed = true;
                             match event {
-                                SoundEvent::Add(file) => {
-                                    log::info!("Added sound file: {}", file.display());
+                                SoundEvent::Add(_) => {
+                                    log::info!("Added sound file: {}", filename);
                                     lock.insert(String::from(filename));
                                 }
-                                SoundEvent::Remove(file) => {
-                                    log::info!("Removing sound file: {}", file.display());
+                                SoundEvent::Remove(_) => {
+                                    log::info!("Removed sound file: {}", filename);
                                     lock.remove(filename);
                                 }
                             }
                         }
                     }
+
                     changed
                 }; // lock and events are dropped here
 
-                // Save the updated soundlist to file if there were changes
+                // Save the updated soundlist to file and notify UI if there were changes
                 if has_changes {
                     if let Err(e) = Soundlist::save_from_files().await {
                         log::error!("Failed to save soundlist: {}", e);
+                    }
+                    // Notify the UI that the sound list has been updated
+                    if let Err(e) = backend_tx
+                        .send(crate::ui::BackendToFrontendMessage::SFXListUpdated)
+                        .await
+                    {
+                        log::error!("Failed to send SFXListUpdated message: {}", e);
                     }
                 }
             }

@@ -1,0 +1,529 @@
+[languages.languages.ca]
+code = "ca"
+name = "Catalan"
+enabled = true
+
+[languages.languages.et]
+code = "et"
+name = "Estonian"
+enabled = true
+
+[languages.languages.lb]
+code = "lb"
+name = "Luxembourgish"
+enabled = true
+
+[languages.languages.gl]
+code = "gl"
+name = "Galician"
+enabled = true
+
+[languages.languages.haw]
+code = "haw"
+name = "Hawaiian"
+enabled = true
+
+[languages.languages.sr]
+code = "sr"
+name = "Serbian"
+enabled = true
+
+[languages.languages.sv]
+code = "sv"
+name = "Swedish"
+enabled = true
+
+[languages.languages.ta]
+code = "ta"
+name = "Tamil"
+enabled = true
+
+[languages.languages.tl]
+code = "tl"
+name = "Filipino"
+enabled = true
+
+[languages.languages.uz]
+code = "uz"
+name = "Uzbek"
+enabled = true
+
+[languages.languages.kn]
+code = "kn"
+name = "Kannada"
+enabled = true
+
+[languages.languages.yo]
+code = "yo"
+name = "Yoruba"
+enabled = true
+
+[languages.languages.mi]
+code = "mi"
+name = "Maori"
+enabled = true
+
+[languages.languages.hi]
+code = "hi"
+name = "Hindi"
+enabled = true
+
+[languages.languages.ug]
+code = "ug"
+name = "Uyghur"
+enabled = true
+
+[languages.languages.la]
+code = "la"
+name = "Latin"
+enabled = true
+
+[languages.languages.zh-TW]
+code = "zh-TW"
+name = "Chinese (Traditional)"
+enabled = true
+
+[languages.languages.mk]
+code = "mk"
+name = "Macedonian"
+enabled = true
+
+[languages.languages.be]
+code = "be"
+name = "Belarusian"
+enabled = true
+
+[languages.languages.es]
+code = "es"
+name = "Spanish"
+enabled = true
+
+[languages.languages.sl]
+code = "sl"
+name = "Slovenian"
+enabled = true
+
+[languages.languages.lv]
+code = "lv"
+name = "Latvian"
+enabled = true
+
+[languages.languages.gd]
+code = "gd"
+name = "Scots Gaelic"
+enabled = true
+
+[languages.languages.su]
+code = "su"
+name = "Sundanese"
+enabled = true
+
+[languages.languages.zu]
+code = "zu"
+name = "Zulu"
+enabled = true
+
+[languages.languages.gu]
+code = "gu"
+name = "Gujarati"
+enabled = true
+
+[languages.languages.lo]
+code = "lo"
+name = "Lao"
+enabled = true
+
+[languages.languages.mr]
+code = "mr"
+name = "Marathi"
+enabled = true
+
+[languages.languages.is]
+code = "is"
+name = "Icelandic"
+enabled = true
+
+[languages.languages.ky]
+code = "ky"
+name = "Kyrgyz"
+enabled = true
+
+[languages.languages.or]
+code = "or"
+name = "Odia"
+enabled = true
+
+[languages.languages.sq]
+code = "sq"
+name = "Albanian"
+enabled = true
+
+[languages.languages.pl]
+code = "pl"
+name = "Polish"
+enabled = true
+
+[languages.languages.tr]
+code = "tr"
+name = "Turkish"
+enabled = true
+
+[languages.languages.fy]
+code = "fy"
+name = "Frisian"
+enabled = true
+
+[languages.languages.qu]
+code = "qu"
+name = "Quechua"
+enabled = true
+
+[languages.languages.it]
+code = "it"
+name = "Italian"
+enabled = true
+
+[languages.languages.jw]
+code = "jw"
+name = "Javanese"
+enabled = true
+
+[languages.languages.am]
+code = "am"
+name = "Amharic"
+enabled = true
+
+[languages.languages.ig]
+code = "ig"
+name = "Igbo"
+enabled = true
+
+[languages.languages.te]
+code = "te"
+name = "Telugu"
+enabled = true
+
+[languages.languages.az]
+code = "az"
+name = "Azerbaijani"
+enabled = true
+
+[languages.languages.ml]
+code = "ml"
+name = "Malayalam"
+enabled = true
+
+[languages.languages.fi]
+code = "fi"
+name = "Finnish"
+enabled = true
+
+[languages.languages.cy]
+code = "cy"
+name = "Welsh"
+enabled = true
+
+[languages.languages.ny]
+code = "ny"
+name = "Chichewa"
+enabled = true
+
+[languages.languages.vi]
+code = "vi"
+name = "Vietnamese"
+enabled = true
+
+[languages.languages.iw]
+code = "iw"
+name = "Hebrew"
+enabled = true
+
+[languages.languages.ko]
+code = "ko"
+name = "Korean"
+enabled = true
+
+[languages.languages.ht]
+code = "ht"
+name = "Haitian Creole"
+enabled = true
+
+[languages.languages.fa]
+code = "fa"
+name = "Persian"
+enabled = true
+
+[languages.languages.ms]
+code = "ms"
+name = "Malay"
+enabled = true
+
+[languages.languages.mg]
+code = "mg"
+name = "Malagasy"
+enabled = true
+
+[languages.languages.st]
+code = "st"
+name = "Sesotho"
+enabled = true
+
+[languages.languages.bn]
+code = "bn"
+name = "Bengali"
+enabled = true
+
+[languages.languages.ar]
+code = "ar"
+name = "Arabic"
+enabled = true
+
+[languages.languages.cs]
+code = "cs"
+name = "Czech"
+enabled = true
+
+[languages.languages.en]
+code = "en"
+name = "English"
+enabled = true
+
+[languages.languages.pa]
+code = "pa"
+name = "Punjabi"
+enabled = true
+
+[languages.languages.ro]
+code = "ro"
+name = "Romanian"
+enabled = true
+
+[languages.languages.ru]
+code = "ru"
+name = "Russian"
+enabled = true
+
+[languages.languages.ku]
+code = "ku"
+name = "Kurdish (Kurmanji)"
+enabled = true
+
+[languages.languages.nl]
+code = "nl"
+name = "Dutch"
+enabled = true
+
+[languages.languages.pt]
+code = "pt"
+name = "Portuguese"
+enabled = true
+
+[languages.languages.km]
+code = "km"
+name = "Khmer"
+enabled = true
+
+[languages.languages.mn]
+code = "mn"
+name = "Mongolian"
+enabled = true
+
+[languages.languages.ha]
+code = "ha"
+name = "Hausa"
+enabled = true
+
+[languages.languages.co]
+code = "co"
+name = "Corsican"
+enabled = true
+
+[languages.languages.lt]
+code = "lt"
+name = "Lithuanian"
+enabled = true
+
+[languages.languages.sk]
+code = "sk"
+name = "Slovak"
+enabled = true
+
+[languages.languages.tg]
+code = "tg"
+name = "Tajik"
+enabled = true
+
+[languages.languages.hr]
+code = "hr"
+name = "Croatian"
+enabled = true
+
+[languages.languages.uk]
+code = "uk"
+name = "Ukrainian"
+enabled = true
+
+[languages.languages.ur]
+code = "ur"
+name = "Urdu"
+enabled = true
+
+[languages.languages.eo]
+code = "eo"
+name = "Esperanto"
+enabled = true
+
+[languages.languages.fr]
+code = "fr"
+name = "French"
+enabled = true
+
+[languages.languages.yi]
+code = "yi"
+name = "Yiddish"
+enabled = true
+
+[languages.languages.de]
+code = "de"
+name = "German"
+enabled = true
+
+[languages.languages.rw]
+code = "rw"
+name = "Kinyarwanda"
+enabled = true
+
+[languages.languages.zh-CN]
+code = "zh-CN"
+name = "Chinese (Simplified)"
+enabled = true
+
+[languages.languages.my]
+code = "my"
+name = "Myanmar (Burmese)"
+enabled = true
+
+[languages.languages.ps]
+code = "ps"
+name = "Pashto"
+enabled = true
+
+[languages.languages.hmn]
+code = "hmn"
+name = "Hmong"
+enabled = true
+
+[languages.languages.sw]
+code = "sw"
+name = "Swahili"
+enabled = true
+
+[languages.languages.ka]
+code = "ka"
+name = "Georgian"
+enabled = true
+
+[languages.languages.sd]
+code = "sd"
+name = "Sindhi"
+enabled = true
+
+[languages.languages.kk]
+code = "kk"
+name = "Kazakh"
+enabled = true
+
+[languages.languages.xh]
+code = "xh"
+name = "Xhosa"
+enabled = true
+
+[languages.languages.ga]
+code = "ga"
+name = "Irish"
+enabled = true
+
+[languages.languages.ceb]
+code = "ceb"
+name = "Cebuano"
+enabled = true
+
+[languages.languages.hu]
+code = "hu"
+name = "Hungarian"
+enabled = true
+
+[languages.languages.th]
+code = "th"
+name = "Thai"
+enabled = true
+
+[languages.languages.el]
+code = "el"
+name = "Greek"
+enabled = true
+
+[languages.languages.ne]
+code = "ne"
+name = "Nepali"
+enabled = true
+
+[languages.languages.id]
+code = "id"
+name = "Indonesian"
+enabled = true
+
+[languages.languages.bs]
+code = "bs"
+name = "Bosnian"
+enabled = true
+
+[languages.languages.bg]
+code = "bg"
+name = "Bulgarian"
+enabled = true
+
+[languages.languages.mt]
+code = "mt"
+name = "Maltese"
+enabled = true
+
+[languages.languages.no]
+code = "no"
+name = "Norwegian"
+enabled = true
+
+[languages.languages.sm]
+code = "sm"
+name = "Samoan"
+enabled = true
+
+[languages.languages.ja]
+code = "ja"
+name = "Japanese"
+enabled = true
+
+[languages.languages.sn]
+code = "sn"
+name = "Shona"
+enabled = true
+
+[languages.languages.so]
+code = "so"
+name = "Somali"
+enabled = true
+
+[languages.languages.si]
+code = "si"
+name = "Sinhala"
+enabled = true
+
+[languages.languages.da]
+code = "da"
+name = "Danish"
+enabled = true
+
+[languages.languages.af]
+code = "af"
+name = "Afrikaans"
+enabled = true

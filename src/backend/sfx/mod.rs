@@ -10,6 +10,8 @@ use std::{
     sync::{LazyLock, Mutex},
 };
 
+use tokio::sync::mpsc;
+
 pub use sounds::Soundlist;
 use watcher::Watcher;
 
@@ -39,13 +41,15 @@ pub struct SoundsManager {
 }
 
 impl SoundsManager {
-    pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(
+        backend_tx: mpsc::Sender<crate::ui::BackendToFrontendMessage>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let sounds_path = PathBuf::from(SOUNDS_DIRECTORY);
 
         let mut watcher = Watcher::serve();
 
         watcher.watch(&sounds_path)?;
-        watcher.push_files()?;
+        watcher.push_files(backend_tx)?;
 
         let soundlist = Soundlist::serve().await?;
 

@@ -1,9 +1,9 @@
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
 use crate::backend::commands::CommandRegistry;
-use crate::ui::{ ChatbotConfig, Config };
+use crate::ui::{ChatbotConfig, Config};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppConfig {
@@ -57,13 +57,13 @@ pub fn load_commands() -> CommandRegistry {
             }
 
             toml::from_str(&content).unwrap_or_else(|e| {
-                eprintln!("Failed to parse commands.toml: {}", e);
-                eprintln!("File content: {}", content);
+                log::error!("Failed to parse commands.toml: {}", e);
+                log::error!("File content: {}", content);
                 CommandRegistry::new()
             })
         }
         Err(e) => {
-            eprintln!("Failed to read commands.toml: {}", e);
+            log::error!("Failed to read commands.toml: {}", e);
             CommandRegistry::new()
         }
     }
@@ -76,11 +76,11 @@ pub fn save_commands(commands: &CommandRegistry) {
     match toml::to_string_pretty(commands) {
         Ok(content) => {
             if let Err(e) = fs::write(&commands_path, content) {
-                eprintln!("Failed to write commands.toml: {}", e);
+                log::error!("Failed to write commands.toml: {}", e);
             }
         }
         Err(e) => {
-            eprintln!("Failed to serialize commands: {}", e);
+            log::error!("Failed to serialize commands: {}", e);
         }
     }
 }
