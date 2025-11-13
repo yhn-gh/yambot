@@ -94,7 +94,8 @@ impl Chatbot {
 
                 // Queue display with scrollable area
                 egui::ScrollArea::vertical()
-                    .max_height(350.0)
+                    .max_height(300.0)
+                    .min_scrolled_height(250.0)
                     .show(ui, |ui| {
                         if self.tts_queue.is_empty() {
                             ui.label("Queue is empty");
@@ -146,7 +147,7 @@ impl Chatbot {
                 ui.label(egui::RichText::new("Enabled Languages").strong().size(16.0));
                 ui.add_space(10.0);
 
-                let available_height = ui.available_height();
+                let available_height = ui.available_height() - 250.0;
                 let table = egui_extras::TableBuilder::new(ui)
                     .striped(true)
                     .resizable(false)

@@ -5,7 +5,10 @@ use crate::backend::tts::{
     LanguageConfig, TTSAudioChunk, TTSQueue, TTSQueueItem, TTSRequest, TTSService,
 };
 use crate::backend::twitch::{TwitchClient, TwitchClientEvent, TwitchConfig};
-use crate::ui::{BackendToFrontendMessage, ChatbotConfig, Config, FrontendToBackendMessage, LogLevel, TTSQueueItemUI};
+use crate::ui::{
+    BackendToFrontendMessage, ChatbotConfig, Config, FrontendToBackendMessage, LogLevel,
+    TTSQueueItemUI,
+};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -192,14 +195,7 @@ async fn handle_twitch_event(
 
                 // Check if message is a command
                 if let Some(context) = command_parser.parse(msg.clone()) {
-                    handle_command(
-                        context,
-                        command_registry,
-                        client,
-                        backend_tx,
-                        audio_tx,
-                    )
-                    .await;
+                    handle_command(context, command_registry, client, backend_tx, audio_tx).await;
                 }
 
                 messages.push(chat_message);
@@ -220,7 +216,10 @@ async fn handle_twitch_event(
             }
 
             crate::backend::twitch::TwitchEvent::ChatClear(clear) => {
-                info!("Chat was cleared in {}'s channel", clear.broadcaster_user_name);
+                info!(
+                    "Chat was cleared in {}'s channel",
+                    clear.broadcaster_user_name
+                );
             }
 
             crate::backend::twitch::TwitchEvent::ChatSettingsUpdate(settings) => {
@@ -235,7 +234,10 @@ async fn handle_twitch_event(
             }
 
             crate::backend::twitch::TwitchEvent::ChannelUnban(unban) => {
-                info!("✅ {} was unbanned by {}", unban.user_name, unban.moderator_user_name);
+                info!(
+                    "✅ {} was unbanned by {}",
+                    unban.user_name, unban.moderator_user_name
+                );
 
                 let _ = backend_tx
                     .send(BackendToFrontendMessage::CreateLog(
@@ -517,10 +519,7 @@ fn handle_sound_file(
 ) {
     // Check if there's a sound file with this name
     let sound_format = crate::backend::sfx::Soundlist::get_format();
-    let sound_path = format!(
-        "./assets/sounds/{}.{}",
-        context.command_name, sound_format
-    );
+    let sound_path = format!("./assets/sounds/{}.{}", context.command_name, sound_format);
 
     if std::path::Path::new(&sound_path).exists() {
         // Check if user has permission to play sounds
