@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod commands;
 pub mod home;
+pub mod overlay;
 pub mod settings;
 pub mod sfx;
 pub mod tts;
@@ -12,6 +13,7 @@ enum Section {
     Sfx,
     Tts,
     Commands,
+    Overlay,
     Settings,
 }
 #[derive(Debug)]
@@ -30,6 +32,10 @@ pub enum FrontendToBackendMessage {
     GetTTSQueue,
     SkipTTSMessage(String), // Skip by message ID
     SkipCurrentTTS,
+    // Overlay messages
+    EnableOverlay,
+    DisableOverlay,
+    TestOverlayWheel,
 }
 
 #[derive(Debug, Clone)]
@@ -51,6 +57,8 @@ pub enum BackendToFrontendMessage {
     CommandExecuted(String, String), // (command_name, result)
     CommandsUpdated,
     TTSQueueUpdated(Vec<TTSQueueItemUI>),
+    // Overlay messages
+    OverlayStatusChanged(bool), // enabled/disabled
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
@@ -116,6 +124,8 @@ pub struct Chatbot {
     tts_queue: Vec<TTSQueueItemUI>,
     commands: Vec<crate::backend::commands::Command>,
     editing_command: Option<EditingCommand>,
+    overlay_enabled: bool,
+    overlay_port: u16,
 }
 
 pub struct EditingCommand {
@@ -137,6 +147,8 @@ impl Chatbot {
         tts_config: Config,
         tts_languages: Vec<crate::backend::tts::Language>,
         commands: Vec<crate::backend::commands::Command>,
+        overlay_enabled: bool,
+        overlay_port: u16,
     ) -> Self {
         Self {
             config,
@@ -154,6 +166,8 @@ impl Chatbot {
             tts_queue: Vec::new(),
             commands,
             editing_command: None,
+            overlay_enabled,
+            overlay_port,
         }
     }
 }
@@ -224,6 +238,18 @@ impl eframe::App for Chatbot {
                                 self.selected_section = Section::Commands;
                             }
 
+                            // OVERLAY button
+                            let overlay_btn = if matches!(self.selected_section, Section::Overlay)
+                            {
+                                egui::Button::new(egui::RichText::new("OVERLAY").strong())
+                                    .fill(Color32::from_rgb(60, 60, 80))
+                            } else {
+                                egui::Button::new("OVERLAY")
+                            };
+                            if ui.add_sized([85.0, 30.0], overlay_btn).clicked() {
+                                self.selected_section = Section::Overlay;
+                            }
+
                             // SETTINGS button
                             let settings_btn = if matches!(self.selected_section, Section::Settings)
                             {
@@ -253,6 +279,7 @@ impl eframe::App for Chatbot {
             Section::Sfx => self.show_sfx(ui),
             Section::Tts => self.show_tts(ui),
             Section::Commands => self.show_commands(ui),
+            Section::Overlay => self.show_overlay(ui),
             Section::Settings => self.show_settings(ui),
         });
 
@@ -303,6 +330,9 @@ impl eframe::App for Chatbot {
                 }
                 BackendToFrontendMessage::ChatMessageReceived(_) => {
                     // Chat message received
+                }
+                BackendToFrontendMessage::OverlayStatusChanged(enabled) => {
+                    self.overlay_enabled = enabled;
                 }
             }
         }

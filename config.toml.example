@@ -22,3 +22,16 @@ enabled = true
 subs = true
 vips = false
 mods = true
+
+[overlay]
+enabled = true  # Set to true to start overlay server
+port = 3000      # Port for overlay HTTP server
+
+# Element positions (x, y in percentages 0-100, scale as multiplier)
+[overlay.positions.wheel]
+x = 50.0
+y = 50.0
+scale = 1.0
+
+# NOTE: To configure overlay positions, open http://localhost:3000?config=true
+# Press 'C' to toggle config mode and drag elements to reposition them

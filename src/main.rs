@@ -70,11 +70,36 @@ async fn main() {
         tts_player_task(tts_queue_for_player, backend_tx_for_player).await;
     });
 
+    // Initialize overlay server if enabled
+    let mut overlay_ws_state = backend::overlay::WebSocketState::new();
+
+    // Create channel for overlay client messages
+    let (overlay_client_tx, overlay_client_rx) = tokio::sync::mpsc::unbounded_channel();
+    overlay_ws_state.set_client_message_channel(overlay_client_tx);
+
+    if config.overlay.enabled {
+        let ws_state = overlay_ws_state.clone();
+        let port = config.overlay.port;
+        tokio::spawn(async move {
+            info!("Starting overlay server on port {}", port);
+            if let Err(e) = backend::overlay::start_overlay_server(port, ws_state).await {
+                log::error!("Failed to start overlay server: {}", e);
+            }
+        });
+    }
+
+    // Spawn task to handle messages from overlay clients
+    let backend_tx_overlay = backend_tx.clone();
+    tokio::spawn(async move {
+        handlers::handle_overlay_client_messages(overlay_client_rx, backend_tx_overlay).await;
+    });
+
     let registry_clone = shared_registry.clone();
     let audio_tx_clone = audio_tx.clone();
     let tts_queue_clone = tts_queue.clone();
     let tts_service_clone = tts_service.clone();
     let language_config_clone = language_config.clone();
+    let overlay_ws_clone = overlay_ws_state.clone();
     tokio::spawn(async move {
         handlers::handle_frontend_to_backend_messages(
             backend_rx,
@@ -84,6 +109,7 @@ async fn main() {
             tts_queue_clone,
             tts_service_clone,
             language_config_clone,
+            overlay_ws_clone,
         )
         .await;
     });
@@ -123,6 +149,8 @@ async fn main() {
                 config.tts,
                 tts_languages,
                 commands,
+                config.overlay.enabled,
+                config.overlay.port,
             )))
         }),
     )

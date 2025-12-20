@@ -579,6 +579,7 @@ pub async fn handle_frontend_to_backend_messages(
     tts_queue: TTSQueue,
     tts_service: Arc<TTSService>,
     language_config: Arc<RwLock<LanguageConfig>>,
+    overlay_ws_state: crate::backend::overlay::WebSocketState,
 ) {
     // Store the handle to the twitch message handler task so we can abort it on disconnect
     let mut twitch_task_handle: Option<tokio::task::JoinHandle<()>> = None;
@@ -634,6 +635,15 @@ pub async fn handle_frontend_to_backend_messages(
             }
             FrontendToBackendMessage::DisconnectFromChat(_channel_name) => {
                 disconnect_from_chat(&mut twitch_task_handle, &backend_tx);
+            }
+            FrontendToBackendMessage::EnableOverlay => {
+                handle_enable_overlay(&backend_tx, &overlay_ws_state).await;
+            }
+            FrontendToBackendMessage::DisableOverlay => {
+                handle_disable_overlay(&backend_tx).await;
+            }
+            FrontendToBackendMessage::TestOverlayWheel => {
+                handle_test_overlay_wheel(&overlay_ws_state, &backend_tx).await;
             }
         }
     }
@@ -702,6 +712,7 @@ fn update_tts_config(
         chatbot: current_config.chatbot,
         sfx: current_config.sfx,
         tts: config,
+        overlay: current_config.overlay,
     });
     let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
         LogLevel::INFO,
@@ -718,6 +729,7 @@ fn update_sfx_config(
         chatbot: current_config.chatbot,
         sfx: config,
         tts: current_config.tts,
+        overlay: current_config.overlay,
     });
     let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
         LogLevel::INFO,
@@ -734,6 +746,7 @@ fn update_chatbot_config(
         chatbot: config,
         sfx: current_config.sfx,
         tts: current_config.tts,
+        overlay: current_config.overlay,
     });
     let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
         LogLevel::INFO,
@@ -942,4 +955,190 @@ fn disconnect_from_chat(
             "Not connected to Twitch".to_string(),
         ));
     }
+}
+
+// Overlay handler functions
+
+async fn handle_enable_overlay(
+    backend_tx: &tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
+    _overlay_ws_state: &crate::backend::overlay::WebSocketState,
+) {
+    // Update config to enable overlay
+    let mut config = crate::backend::config::load_config();
+    config.overlay.enabled = true;
+    crate::backend::config::save_config(&config);
+
+    let _ = backend_tx.send(BackendToFrontendMessage::OverlayStatusChanged(true)).await;
+    let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+        LogLevel::WARN,
+        "Overlay enabled. Please restart the application for changes to take effect.".to_string(),
+    )).await;
+}
+
+async fn handle_disable_overlay(
+    backend_tx: &tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
+) {
+    // Update config to disable overlay
+    let mut config = crate::backend::config::load_config();
+    config.overlay.enabled = false;
+    crate::backend::config::save_config(&config);
+
+    let _ = backend_tx.send(BackendToFrontendMessage::OverlayStatusChanged(false)).await;
+    let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+        LogLevel::WARN,
+        "Overlay disabled. Please restart the application for changes to take effect.".to_string(),
+    )).await;
+}
+
+async fn handle_test_overlay_wheel(
+    overlay_ws_state: &crate::backend::overlay::WebSocketState,
+    backend_tx: &tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
+) {
+    use crate::backend::overlay::OverlayEvent;
+
+    let test_items = vec![
+        "Prize 1".to_string(),
+        "Prize 2".to_string(),
+        "Prize 3".to_string(),
+        "Prize 4".to_string(),
+        "Prize 5".to_string(),
+        "Prize 6".to_string(),
+    ];
+
+    let event = OverlayEvent::TriggerAction {
+        action_type: "spin_wheel".to_string(),
+        data: serde_json::json!({
+            "items": test_items
+        }),
+    };
+
+    overlay_ws_state.broadcast(event).await;
+
+    let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+        LogLevel::INFO,
+        "Test wheel spin sent to overlay".to_string(),
+    )).await;
+}
+
+/// Handle messages from overlay clients (wheel results, position updates, etc.)
+pub async fn handle_overlay_client_messages(
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<crate::backend::overlay::websocket::OverlayClientMessage>,
+    backend_tx: tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
+) {
+    use crate::backend::overlay::websocket::OverlayClientMessage;
+
+    while let Some(message) = rx.recv().await {
+        match message {
+            OverlayClientMessage::WheelResult { result, action } => {
+                log::info!("Wheel result received: {} with action: {:?}", result, action);
+
+                if let Some(wheel_action) = action {
+                    handle_wheel_action(wheel_action, &backend_tx).await;
+                }
+
+                let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+                    LogLevel::INFO,
+                    format!("Wheel landed on: {}", result),
+                )).await;
+            }
+            OverlayClientMessage::PositionUpdate { element, x, y, scale } => {
+                log::info!("Position update for {}: ({}, {}) scale: {}", element, x, y, scale);
+                handle_position_update(element, x, y, scale, &backend_tx).await;
+            }
+            OverlayClientMessage::RequestConfig => {
+                log::debug!("Overlay requested configuration");
+                // Could send current positions here if needed
+            }
+        }
+    }
+}
+
+async fn handle_wheel_action(
+    action: crate::backend::overlay::websocket::WheelAction,
+    backend_tx: &tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
+) {
+    use crate::backend::overlay::websocket::WheelAction;
+
+    match action {
+        WheelAction::Ban { username, reason } => {
+            let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+                LogLevel::WARN,
+                format!("Wheel action: BAN {} - {}", username, reason),
+            )).await;
+            // TODO: Implement actual ban via Twitch client
+            // This would require passing the TwitchClient to this handler
+        }
+        WheelAction::Timeout { username, duration, reason } => {
+            let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+                LogLevel::WARN,
+                format!("Wheel action: TIMEOUT {} for {}s - {}", username, duration, reason),
+            )).await;
+            // TODO: Implement actual timeout via Twitch client
+        }
+        WheelAction::Unban { username } => {
+            let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+                LogLevel::INFO,
+                format!("Wheel action: UNBAN {}", username),
+            )).await;
+            // TODO: Implement actual unban via Twitch client
+        }
+        WheelAction::RunCommand { command } => {
+            let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+                LogLevel::INFO,
+                format!("Wheel action: RUN COMMAND {}", command),
+            )).await;
+            // TODO: Execute chat command
+        }
+        WheelAction::Nothing => {
+            let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+                LogLevel::INFO,
+                "Wheel action: Nothing happens".to_string(),
+            )).await;
+        }
+    }
+}
+
+async fn handle_position_update(
+    element: String,
+    x: f32,
+    y: f32,
+    scale: f32,
+    backend_tx: &tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
+) {
+    // Update config with new position and scale
+    let mut config = crate::backend::config::load_config();
+
+    match element.as_str() {
+        "wheel" => {
+            config.overlay.positions.wheel.x = x;
+            config.overlay.positions.wheel.y = y;
+            config.overlay.positions.wheel.scale = scale;
+        }
+        "alert" => {
+            config.overlay.positions.alert.x = x;
+            config.overlay.positions.alert.y = y;
+            config.overlay.positions.alert.scale = scale;
+        }
+        "image" => {
+            config.overlay.positions.image.x = x;
+            config.overlay.positions.image.y = y;
+            config.overlay.positions.image.scale = scale;
+        }
+        "text" => {
+            config.overlay.positions.text.x = x;
+            config.overlay.positions.text.y = y;
+            config.overlay.positions.text.scale = scale;
+        }
+        _ => {
+            log::warn!("Unknown overlay element: {}", element);
+            return;
+        }
+    }
+
+    crate::backend::config::save_config(&config);
+
+    let _ = backend_tx.send(BackendToFrontendMessage::CreateLog(
+        LogLevel::INFO,
+        format!("Updated {} position to ({:.1}%, {:.1}%) with scale {:.2}x", element, x, y, scale),
+    )).await;
 }

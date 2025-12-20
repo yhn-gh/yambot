@@ -27,3 +27,8 @@ tokio-tungstenite = { version = "0.28.0", features = ["native-tls"] }
 futures-util = "0.3.31"
 reqwest = { version = "0.12.12", features = ["json", "rustls-tls"] }
 urlencoding = "2.1.3"
+
+# HTTP server for overlay
+axum = { version = "0.7", features = ["ws"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "cors"] }

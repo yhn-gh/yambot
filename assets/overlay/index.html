@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Yambot Stream Overlay</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Spinning Wheel Container -->
+    <div id="wheel-container" class="hidden">
+        <canvas id="wheel-canvas"></canvas>
+        <div id="wheel-pointer"></div>
+        <div id="wheel-result" class="hidden"></div>
+    </div>
+
+    <!-- Debug Info (hidden in production) -->
+    <div id="debug-info" class="debug-panel hidden">
+        <h3>Debug Info</h3>
+        <p>Connection: <span id="debug-connection">Disconnected</span></p>
+        <p>Last Event: <span id="debug-event">None</span></p>
+    </div>
+
+    <script src="js/wheel.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

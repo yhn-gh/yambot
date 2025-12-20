@@ -2,8 +2,8 @@ use super::error::{Result, TwitchError};
 use serde::{Deserialize, Serialize};
 
 /// Hardcoded client credentials - NOT exposed to users
-pub const CLIENT_ID: &str = "";
-const CLIENT_SECRET: &str = "";
+pub const CLIENT_ID: &str = "uvtehcu4hjk2zmh327p5ka3mbtajae";
+const CLIENT_SECRET: &str = "qzoh9du4je5x0g03q4sq80aue309th";
 const TOKEN_URL: &str = "https://id.twitch.tv/oauth2/token";
 
 /// Response from the token refresh endpoint

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -10,6 +11,89 @@ pub struct AppConfig {
     pub chatbot: ChatbotConfig,
     pub sfx: Config,
     pub tts: Config,
+    #[serde(default)]
+    pub overlay: OverlayConfig,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OverlayConfig {
+    #[serde(default = "default_overlay_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_overlay_port")]
+    pub port: u16,
+    #[serde(default)]
+    pub reward_bindings: HashMap<String, RewardAction>,
+    #[serde(default)]
+    pub positions: OverlayPositions,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OverlayPositions {
+    #[serde(default)]
+    pub wheel: ElementPosition,
+    #[serde(default)]
+    pub alert: ElementPosition,
+    #[serde(default)]
+    pub image: ElementPosition,
+    #[serde(default)]
+    pub text: ElementPosition,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ElementPosition {
+    pub x: f32,
+    pub y: f32,
+    #[serde(default = "default_scale")]
+    pub scale: f32,
+}
+
+impl Default for OverlayPositions {
+    fn default() -> Self {
+        Self {
+            wheel: ElementPosition { x: 50.0, y: 50.0, scale: 1.0 },
+            alert: ElementPosition { x: 85.0, y: 10.0, scale: 1.0 },
+            image: ElementPosition { x: 50.0, y: 50.0, scale: 1.0 },
+            text: ElementPosition { x: 50.0, y: 80.0, scale: 1.0 },
+        }
+    }
+}
+
+impl Default for ElementPosition {
+    fn default() -> Self {
+        Self { x: 50.0, y: 50.0, scale: 1.0 }
+    }
+}
+
+fn default_scale() -> f32 {
+    1.0
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum RewardAction {
+    PlaySound(String),
+    SpinWheel { items: Vec<String> },
+    ShowImage { url: String, duration_ms: u32 },
+    ShowText { text: String, duration_ms: u32 },
+    TriggerEffect(String),
+}
+
+impl Default for OverlayConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_overlay_enabled(),
+            port: default_overlay_port(),
+            reward_bindings: HashMap::new(),
+            positions: OverlayPositions::default(),
+        }
+    }
+}
+
+fn default_overlay_enabled() -> bool {
+    false
+}
+
+fn default_overlay_port() -> u16 {
+    3000
 }
 
 impl AppConfig {

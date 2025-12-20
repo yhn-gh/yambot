@@ -430,6 +430,21 @@ impl TwitchClient {
         self.broadcaster_id = None;
         self.bot_user_id = None;
     }
+
+    /// Get the broadcaster user ID (if connected)
+    pub fn broadcaster_user_id(&self) -> Option<&String> {
+        self.broadcaster_id.as_ref()
+    }
+
+    /// Get the bot user ID (if connected)
+    pub fn bot_user_id(&self) -> Option<&String> {
+        self.bot_user_id.as_ref()
+    }
+
+    /// Get a reference to the API client
+    pub fn api(&self) -> &TwitchApi {
+        &self.api
+    }
 }
 
 impl Drop for TwitchClient {
