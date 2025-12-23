@@ -645,6 +645,9 @@ pub async fn handle_frontend_to_backend_messages(
             FrontendToBackendMessage::TestOverlayWheel => {
                 handle_test_overlay_wheel(&overlay_ws_state, &backend_tx).await;
             }
+            FrontendToBackendMessage::UpdateUIConfig(theme_name) => {
+                handle_update_ui_config(theme_name, &backend_tx).await;
+            }
         }
     }
 }
@@ -709,6 +712,7 @@ fn update_tts_config(
 ) {
     let current_config: AppConfig = crate::backend::config::load_config();
     crate::backend::config::save_config(&AppConfig {
+        ui: current_config.ui,
         chatbot: current_config.chatbot,
         sfx: current_config.sfx,
         tts: config,
@@ -726,6 +730,7 @@ fn update_sfx_config(
 ) {
     let current_config: AppConfig = crate::backend::config::load_config();
     crate::backend::config::save_config(&AppConfig {
+        ui: current_config.ui,
         chatbot: current_config.chatbot,
         sfx: config,
         tts: current_config.tts,
@@ -743,6 +748,7 @@ fn update_chatbot_config(
 ) {
     let current_config: AppConfig = crate::backend::config::load_config();
     crate::backend::config::save_config(&AppConfig {
+        ui: current_config.ui,
         chatbot: config,
         sfx: current_config.sfx,
         tts: current_config.tts,
@@ -752,6 +758,21 @@ fn update_chatbot_config(
         LogLevel::INFO,
         "Chatbot config updated".to_string(),
     ));
+}
+
+async fn handle_update_ui_config(
+    theme_name: String,
+    backend_tx: &tokio::sync::mpsc::Sender<BackendToFrontendMessage>,
+) {
+    let mut current_config: AppConfig = crate::backend::config::load_config();
+    current_config.ui.theme = theme_name.clone();
+    crate::backend::config::save_config(&current_config);
+
+    let _ = backend_tx.try_send(BackendToFrontendMessage::CreateLog(
+        LogLevel::INFO,
+        format!("Theme changed to: {}", theme_name),
+    ));
+    let _ = backend_tx.try_send(BackendToFrontendMessage::UIConfigUpdated);
 }
 
 #[allow(clippy::too_many_arguments)]

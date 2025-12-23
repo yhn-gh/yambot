@@ -2,80 +2,81 @@ use super::Chatbot;
 
 impl Chatbot {
     pub fn show_tts(&mut self, ui: &mut egui::Ui) {
-        ui.set_height(ui.available_height());
-        ui.horizontal(|ui| {
-            // Left panel - Settings and Queue (fixed width)
+        let available_width = ui.available_width();
+
+        ui.horizontal_top(|ui| {
+            // Left panel - Settings and Queue (2/3 width for more queue space)
             ui.vertical(|ui| {
-                ui.set_width(400.0);
-                ui.horizontal(|ui: &mut egui::Ui| {
-                    ui.label("TTS status: ");
-                    if ui
-                        .button(if self.tts_config.enabled { "ON" } else { "OFF" })
-                        .clicked()
-                    {
-                        if self.tts_config.enabled {
-                            self.tts_config.enabled = false;
-                        } else {
-                            self.tts_config.enabled = true;
+                ui.set_width(available_width * 0.64);
+
+                // TTS Settings in Grid for compact layout
+                egui::Grid::new("tts_settings_grid")
+                    .num_columns(2)
+                    .spacing([10.0, 8.0])
+                    .show(ui, |ui| {
+                        // Status
+                        ui.label("Status:");
+                        if ui
+                            .button(if self.tts_config.enabled { "ON" } else { "OFF" })
+                            .clicked()
+                        {
+                            self.tts_config.enabled = !self.tts_config.enabled;
+                            let _ = self.frontend_tx.try_send(
+                                super::FrontendToBackendMessage::UpdateTTSConfig(
+                                    self.tts_config.clone(),
+                                )
+                            );
                         }
-                        self.frontend_tx
-                            .try_send(super::FrontendToBackendMessage::UpdateTTSConfig(
-                                self.tts_config.clone(),
-                            ))
-                            .unwrap();
-                    }
-                });
-                ui.add_space(10.0);
-                ui.label("TTS volume (0-1 range):");
-                // funny cus this returns giant floating point numbers
-                if ui
-                    .add(egui::Slider::new(&mut self.tts_config.volume, 0.0..=1.0))
-                    .drag_stopped()
-                {
-                    self.frontend_tx
-                        .try_send(super::FrontendToBackendMessage::UpdateTTSConfig(
-                            self.tts_config.clone(),
-                        ))
-                        .unwrap();
-                }
-                ui.add_space(10.0);
-                ui.label("TTS permissions:");
-                if ui
-                    .checkbox(&mut self.tts_config.permited_roles.subs, "Subs")
-                    .changed()
-                {
-                    self.frontend_tx
-                        .try_send(super::FrontendToBackendMessage::UpdateTTSConfig(
-                            self.tts_config.clone(),
-                        ))
-                        .unwrap();
-                }
-                if ui
-                    .checkbox(&mut self.tts_config.permited_roles.vips, "VIPS")
-                    .changed()
-                {
-                    self.frontend_tx
-                        .try_send(super::FrontendToBackendMessage::UpdateTTSConfig(
-                            self.tts_config.clone(),
-                        ))
-                        .unwrap();
-                }
-                if ui
-                    .checkbox(&mut self.tts_config.permited_roles.mods, "Mods")
-                    .changed()
-                {
-                    self.frontend_tx
-                        .try_send(super::FrontendToBackendMessage::UpdateTTSConfig(
-                            self.tts_config.clone(),
-                        ))
-                        .unwrap();
-                }
+                        ui.end_row();
+
+                        // Volume
+                        ui.label("Volume:");
+                        if ui
+                            .add(egui::Slider::new(&mut self.tts_config.volume, 0.0..=1.0))
+                            .drag_stopped()
+                        {
+                            let _ = self.frontend_tx.try_send(
+                                super::FrontendToBackendMessage::UpdateTTSConfig(
+                                    self.tts_config.clone(),
+                                )
+                            );
+                        }
+                        ui.end_row();
+
+                        // Permissions
+                        ui.label("Permissions:");
+                        ui.horizontal(|ui| {
+                            if ui.checkbox(&mut self.tts_config.permited_roles.subs, "Subs").changed() {
+                                let _ = self.frontend_tx.try_send(
+                                    super::FrontendToBackendMessage::UpdateTTSConfig(
+                                        self.tts_config.clone(),
+                                    )
+                                );
+                            }
+                            if ui.checkbox(&mut self.tts_config.permited_roles.vips, "VIPs").changed() {
+                                let _ = self.frontend_tx.try_send(
+                                    super::FrontendToBackendMessage::UpdateTTSConfig(
+                                        self.tts_config.clone(),
+                                    )
+                                );
+                            }
+                            if ui.checkbox(&mut self.tts_config.permited_roles.mods, "Mods").changed() {
+                                let _ = self.frontend_tx.try_send(
+                                    super::FrontendToBackendMessage::UpdateTTSConfig(
+                                        self.tts_config.clone(),
+                                    )
+                                );
+                            }
+                        });
+                        ui.end_row();
+                    });
+
                 ui.add_space(10.0);
                 ui.separator();
                 ui.add_space(10.0);
 
                 // TTS Queue Preview Section
-                ui.label(egui::RichText::new("TTS Queue").strong().size(16.0));
+                ui.heading("TTS Queue");
                 ui.add_space(5.0);
 
                 ui.horizontal(|ui| {
@@ -94,8 +95,7 @@ impl Chatbot {
 
                 // Queue display with scrollable area
                 egui::ScrollArea::vertical()
-                    .max_height(300.0)
-                    .min_scrolled_height(250.0)
+                    .id_salt("tts_queue_scroll")
                     .show(ui, |ui| {
                         if self.tts_queue.is_empty() {
                             ui.label("Queue is empty");
@@ -137,75 +137,48 @@ impl Chatbot {
                             }
                         }
                     });
-                ui.add_space(200.0);
             });
+
             ui.separator();
 
-            // Right panel - Language Selection
+            // Right panel - Language Selection (1/3 width)
             ui.vertical(|ui| {
-                ui.set_height(ui.available_height());
-                ui.label(egui::RichText::new("Enabled Languages").strong().size(16.0));
+                ui.set_width(available_width * 0.32);
+
+                ui.heading("Enabled Languages");
                 ui.add_space(10.0);
 
-                let available_height = ui.available_height() - 250.0;
-                let table = egui_extras::TableBuilder::new(ui)
-                    .striped(true)
-                    .resizable(false)
-                    .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                    .column(egui_extras::Column::auto())
-                    .column(egui_extras::Column::initial(200.0))
-                    .column(egui_extras::Column::auto())
-                    .min_scrolled_height(0.0)
-                    .max_scroll_height(available_height);
-
-                table
-                    .header(20.0, |mut header| {
-                        header.col(|ui| {
-                            ui.strong("Code");
-                        });
-                        header.col(|ui| {
-                            ui.strong("Language name");
-                        });
-                        header.col(|ui| {
-                            ui.strong("Enabled");
-                        });
-                    })
-                    .body(|mut body| {
-                        let languages = self.tts_languages.clone();
-                        for language in languages.iter() {
-                            let row_height = 18.0;
-                            body.row(row_height, |mut row| {
-                                row.col(|ui| {
-                                    ui.label(&language.code);
-                                });
-                                row.col(|ui| {
-                                    ui.label(&language.name);
-                                });
-                                row.col(|ui| {
-                                    let mut enabled = language.enabled;
+                egui::ScrollArea::vertical()
+                    .id_salt("tts_languages_scroll")
+                    .show(ui, |ui| {
+                        ui.set_width(available_width);
+                        if self.tts_languages.is_empty() {
+                            ui.label("No languages loaded.");
+                        } else {
+                            for lang in &self.tts_languages {
+                                ui.horizontal(|ui| {
+                                    ui.label(&lang.code);
+                                    ui.label(&lang.name);
+                                    let mut enabled = lang.enabled;
                                     if ui.checkbox(&mut enabled, "").changed() {
                                         if enabled {
-                                            self.frontend_tx
-                                                .try_send(
-                                                    super::FrontendToBackendMessage::AddTTSLang(
-                                                        language.code.clone(),
-                                                    ),
-                                                )
-                                                .unwrap();
+                                            let _ = self.frontend_tx.try_send(
+                                                super::FrontendToBackendMessage::AddTTSLang(
+                                                    lang.code.clone(),
+                                                ),
+                                            );
                                         } else {
-                                            self.frontend_tx
-                                                .try_send(
-                                                    super::FrontendToBackendMessage::RemoveTTSLang(
-                                                        language.code.clone(),
-                                                    ),
-                                                )
-                                                .unwrap();
+                                            let _ = self.frontend_tx.try_send(
+                                                super::FrontendToBackendMessage::RemoveTTSLang(
+                                                    lang.code.clone(),
+                                                ),
+                                            );
                                         }
                                     }
                                 });
-                            });
+                            }
                         }
-                    })
+                    });
             });
         });
     }

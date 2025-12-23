@@ -40,6 +40,35 @@ impl Chatbot {
             });
             ui.label("(Optional: Message to send when bot connects. Leave empty to disable)");
             ui.add_space(10.0);
+
+            ui.separator();
+            ui.add_space(10.0);
+            ui.heading("Theme");
+            ui.horizontal(|ui| {
+                ui.label("Select theme:");
+                egui::ComboBox::from_id_salt("theme_selector")
+                    .selected_text(self.current_theme.display_name())
+                    .show_ui(ui, |ui| {
+                        for theme in super::theme::ThemeKind::all() {
+                            if ui
+                                .selectable_label(self.current_theme == theme, theme.display_name())
+                                .clicked()
+                            {
+                                self.current_theme = theme;
+                                // Apply theme immediately
+                                super::theme::apply_theme(ui.ctx(), theme);
+                                // Send message to backend to persist
+                                let _ = self
+                                    .frontend_tx
+                                    .try_send(FrontendToBackendMessage::UpdateUIConfig(
+                                        theme.to_string(),
+                                    ));
+                            }
+                        }
+                    });
+            });
+            ui.add_space(10.0);
+
             if ui.button("Save").clicked() {
                 let _ = self
                     .frontend_tx

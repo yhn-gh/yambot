@@ -135,13 +135,16 @@ async fn main() {
         "Yambot",
         native_options,
         Box::new(|cc| {
-            cc.egui_ctx.set_style(egui::Style {
-                visuals: egui::Visuals::dark(),
-                ..egui::Style::default()
-            });
             egui_extras::install_image_loaders(&cc.egui_ctx);
+
+            // Parse theme from config
+            let theme = ui::ThemeKind::from_str(&config.ui.theme)
+                .unwrap_or(ui::ThemeKind::Twilight);
+
             // read values from env or other config file that will be updated later on
             Ok(Box::new(ui::Chatbot::new(
+                cc,
+                theme,
                 config.chatbot,
                 frontend_tx,
                 frontend_rx,

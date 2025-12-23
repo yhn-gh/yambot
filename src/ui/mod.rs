@@ -6,7 +6,10 @@ pub mod home;
 pub mod overlay;
 pub mod settings;
 pub mod sfx;
+pub mod theme;
 pub mod tts;
+
+pub use theme::ThemeKind;
 
 enum Section {
     Home,
@@ -36,6 +39,8 @@ pub enum FrontendToBackendMessage {
     EnableOverlay,
     DisableOverlay,
     TestOverlayWheel,
+    // UI messages
+    UpdateUIConfig(String), // theme name
 }
 
 #[derive(Debug, Clone)]
@@ -59,6 +64,8 @@ pub enum BackendToFrontendMessage {
     TTSQueueUpdated(Vec<TTSQueueItemUI>),
     // Overlay messages
     OverlayStatusChanged(bool), // enabled/disabled
+    // UI messages
+    UIConfigUpdated,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
@@ -126,6 +133,7 @@ pub struct Chatbot {
     editing_command: Option<EditingCommand>,
     overlay_enabled: bool,
     overlay_port: u16,
+    current_theme: ThemeKind,
 }
 
 pub struct EditingCommand {
@@ -140,6 +148,8 @@ pub struct EditingCommand {
 
 impl Chatbot {
     pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        theme: ThemeKind,
         config: ChatbotConfig,
         frontend_tx: tokio::sync::mpsc::Sender<FrontendToBackendMessage>,
         frontend_rx: tokio::sync::mpsc::Receiver<BackendToFrontendMessage>,
@@ -150,6 +160,9 @@ impl Chatbot {
         overlay_enabled: bool,
         overlay_port: u16,
     ) -> Self {
+        // Apply the theme to the egui context
+        theme::apply_theme(&cc.egui_ctx, theme);
+
         Self {
             config,
             selected_section: Section::Home,
@@ -168,6 +181,7 @@ impl Chatbot {
             editing_command: None,
             overlay_enabled,
             overlay_port,
+            current_theme: theme,
         }
     }
 }
@@ -239,8 +253,7 @@ impl eframe::App for Chatbot {
                             }
 
                             // OVERLAY button
-                            let overlay_btn = if matches!(self.selected_section, Section::Overlay)
-                            {
+                            let overlay_btn = if matches!(self.selected_section, Section::Overlay) {
                                 egui::Button::new(egui::RichText::new("OVERLAY").strong())
                                     .fill(Color32::from_rgb(60, 60, 80))
                             } else {
@@ -274,6 +287,13 @@ impl eframe::App for Chatbot {
             ui.add_space(5.0);
         });
 
+        TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.label(format!("Version: {}", env!("CARGO_PKG_VERSION")));
+                ui.hyperlink_to("Source code", "https://www.github.com/xyamii/yambot");
+            });
+        });
+
         CentralPanel::default().show(ctx, |ui| match self.selected_section {
             Section::Home => self.show_home(ui),
             Section::Sfx => self.show_sfx(ui),
@@ -281,13 +301,6 @@ impl eframe::App for Chatbot {
             Section::Commands => self.show_commands(ui),
             Section::Overlay => self.show_overlay(ui),
             Section::Settings => self.show_settings(ui),
-        });
-
-        TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.label(format!("Version: {}", env!("CARGO_PKG_VERSION")));
-                ui.hyperlink_to("Source code", "https://www.github.com/xyamii/yambot");
-            });
         });
 
         while let Ok(message) = self.frontend_rx.try_recv() {
@@ -333,6 +346,10 @@ impl eframe::App for Chatbot {
                 }
                 BackendToFrontendMessage::OverlayStatusChanged(enabled) => {
                     self.overlay_enabled = enabled;
+                }
+                BackendToFrontendMessage::UIConfigUpdated => {
+                    // Theme has been saved to config
+                    // The theme is already applied when the user selects it
                 }
             }
         }

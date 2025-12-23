@@ -8,11 +8,31 @@ use crate::ui::{ChatbotConfig, Config};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppConfig {
+    #[serde(default)]
+    pub ui: UiConfig,
     pub chatbot: ChatbotConfig,
     pub sfx: Config,
     pub tts: Config,
     #[serde(default)]
     pub overlay: OverlayConfig,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UiConfig {
+    #[serde(default = "default_theme")]
+    pub theme: String,
+}
+
+impl Default for UiConfig {
+    fn default() -> Self {
+        Self {
+            theme: default_theme(),
+        }
+    }
+}
+
+fn default_theme() -> String {
+    "Twilight".to_string()
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
